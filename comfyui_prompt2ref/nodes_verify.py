@@ -1,6 +1,7 @@
-"""Visual QC pass: show each entity's downloaded frames to the local model
-and drop the ones that would poison an image-to-image reference, same idea
-as prompt2ref.verify but judged by the local CLIP-loaded LLM instead of Claude.
+"""Visual QC pass: show each entity's downloaded frames to an LLM provider
+(P2RLocalProvider or P2RAnthropicProvider) and drop the ones that would
+poison an image-to-image reference - same idea as prompt2ref.verify, judged
+by whichever provider is wired in instead of a hardcoded Claude API call.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from . import _repo  # noqa: F401
 from . import local_llm
 
 MAX_PER_CALL = 6
-QC_EDGE = 448  # square resize so multiple images can share one tokenize() call
+QC_EDGE = 448  # square resize so multiple images can share one call
 
 
 def _load_square(path, edge=QC_EDGE):
@@ -31,12 +32,9 @@ class P2RVerifyReferences:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "clip": ("CLIP",),
+                "provider": ("P2R_PROVIDER",),
                 "manifest_json": ("STRING", {"multiline": True, "default": "{}"}),
                 "enabled": ("BOOLEAN", {"default": True}),
-                "max_length": ("INT", {"default": 512, "min": 64, "max": 2048}),
-                "temperature": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 2.0, "step": 0.05}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -45,7 +43,7 @@ class P2RVerifyReferences:
     FUNCTION = "run"
     CATEGORY = "prompt2ref"
 
-    def run(self, clip, manifest_json, enabled=True, max_length=512, temperature=0.2, seed=0):
+    def run(self, provider, manifest_json, enabled=True):
         manifest = json.loads(manifest_json or "{}")
         entities = manifest.get("entities", [])
         report_lines = []
@@ -60,7 +58,7 @@ class P2RVerifyReferences:
             kept, rejected = [], []
             for start in range(0, len(images), MAX_PER_CALL):
                 chunk = images[start:start + MAX_PER_CALL]
-                verdicts = self._verify_chunk(clip, entity, chunk, max_length, temperature, seed)
+                verdicts = self._verify_chunk(provider, entity, chunk)
                 for i, img in enumerate(chunk):
                     ok, reason = verdicts.get(i + 1, (True, ""))
                     (kept if ok else rejected).append((img, reason))
@@ -85,7 +83,7 @@ class P2RVerifyReferences:
         return (json.dumps(manifest), "\n".join(report_lines) or "(no images to check)")
 
     @staticmethod
-    def _verify_chunk(clip, entity, chunk, max_length, temperature, seed) -> dict[int, tuple[bool, str]]:
+    def _verify_chunk(provider, entity, chunk) -> dict[int, tuple[bool, str]]:
         from prompt2ref.verify import SYSTEM
 
         images = []
@@ -104,21 +102,18 @@ class P2RVerifyReferences:
 
         label = entity.get("name", "") + (
             " (%s)" % entity["descriptor"] if entity.get("descriptor") else "")
-        instruction = (
-            SYSTEM + "\n\n"
-            + "\n".join(lines)
+        user_prompt = (
+            "\n".join(lines)
             + "\n\nEntity: %s\nType: %s\nJudge all %d images.\n\n" % (
                 label, entity.get("type", "other"), len(images))
             + 'Output ONLY a single JSON object, no prose, of the exact shape '
               '{"verdicts": [{"index": int, "ok": bool, "reason": str}]}, one entry per image.'
         )
         try:
-            text = local_llm.generate_text(
-                clip, instruction, max_length=max_length, temperature=temperature,
-                seed=seed, images=images)
+            text = provider.generate(SYSTEM, user_prompt, images=images)
             data = local_llm.extract_json(text)
         except Exception as exc:
-            print("[prompt2ref] local verify failed (%r); keeping all images in this chunk" % exc)
+            print("[prompt2ref] verify failed (%r); keeping all images in this chunk" % exc)
             return {}
 
         out: dict[int, tuple[bool, str]] = {}
@@ -130,4 +125,4 @@ class P2RVerifyReferences:
 
 
 NODE_CLASS_MAPPINGS = {"P2RVerifyReferences": P2RVerifyReferences}
-NODE_DISPLAY_NAME_MAPPINGS = {"P2RVerifyReferences": "P2R Verify References (local LLM)"}
+NODE_DISPLAY_NAME_MAPPINGS = {"P2RVerifyReferences": "P2R Verify References"}

@@ -12,7 +12,8 @@ SERVER = "http://127.0.0.1:8188"
 
 # Types ComfyUI never renders as a widget - always a socket.
 CONNECTION_ONLY = {"CLIP", "VAE", "IMAGE", "CONDITIONING", "LATENT", "AUDIO",
-                    "MODEL", "MASK", "CONTROL_NET", "COMFY_AUTOGROW_V3"}
+                    "MODEL", "MASK", "CONTROL_NET", "COMFY_AUTOGROW_V3",
+                    "P2R_PROVIDER"}
 
 
 def fetch_object_info(class_types):
@@ -150,7 +151,7 @@ def main():
         out["links"] = (out["links"] or []) + [lid]
 
     workflow = {
-        "id": "prompt2ref-local-llm-test",
+        "id": "prompt2ref-node-workflow",
         "revision": 0,
         "last_node_id": max(node_id.values()),
         "last_link_id": next_link_id[0] - 1,
@@ -162,7 +163,7 @@ def main():
         "version": 0.4,
     }
 
-    out_path = r"C:\Users\micke\Desktop\AI\Prompt2Ref\workflows\prompt2ref_local_llm_node.json"
+    out_path = r"C:\Users\micke\Desktop\AI\Prompt2Ref\workflows\prompt2ref_node_workflow.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(workflow, f, indent=2)
     print("wrote", out_path)

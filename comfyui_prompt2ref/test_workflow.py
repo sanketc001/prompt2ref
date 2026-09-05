@@ -22,9 +22,23 @@ HEIGHT = 768
 LENGTH = 124          # 5 mod 17, ~5s at 24fps
 
 graph = {
+    # Two alternative providers for P2RExtractEntities/P2RVerifyReferences/
+    # P2RBuildH3Prompt - "provider_api" is wired into the pipeline below;
+    # "provider_local" is left in the graph, unwired, as the free/local
+    # alternative to swap back in (rewire its output into the three
+    # `provider` inputs currently pointed at provider_api).
     "clip_local": {
         "class_type": "CLIPLoader",
         "inputs": {"clip_name": "qwen3vl_8b_nvfp4.safetensors", "type": "stable_diffusion"},
+    },
+    "provider_local": {
+        "class_type": "P2RLocalProvider",
+        "inputs": {"clip": ["clip_local", 0], "max_length": 768, "temperature": 0.4,
+                   "top_p": 0.9, "top_k": 40, "seed": 0},
+    },
+    "provider_api": {
+        "class_type": "P2RAnthropicProvider",
+        "inputs": {"model": "claude-haiku-4-5", "max_tokens": 1024},
     },
     "clip_h3": {
         "class_type": "CLIPLoader",
@@ -41,12 +55,9 @@ graph = {
     "extract": {
         "class_type": "P2RExtractEntities",
         "inputs": {
-            "clip": ["clip_local", 0],
+            "provider": ["provider_api", 0],
             "prompt": TEST_PROMPT,
             "use_llm": True,
-            "max_length": 768,
-            "temperature": 0.4,
-            "seed": 0,
         },
     },
     # 5 switchable entity slots: slot N starts from the Nth auto-extracted
@@ -82,12 +93,9 @@ graph = {
     "verify": {
         "class_type": "P2RVerifyReferences",
         "inputs": {
-            "clip": ["clip_local", 0],
+            "provider": ["provider_api", 0],
             "manifest_json": ["fetch", 0],
             "enabled": True,
-            "max_length": 512,
-            "temperature": 0.2,
-            "seed": 0,
         },
     },
     "pack": {
@@ -102,14 +110,11 @@ graph = {
     "h3prompt": {
         "class_type": "P2RBuildH3Prompt",
         "inputs": {
-            "clip": ["clip_local", 0],
+            "provider": ["provider_api", 0],
             "user_prompt": TEST_PROMPT,
             "captions_json": ["pack", 9],
             "seconds": 1.0,
             "use_llm": True,
-            "max_length": 1024,
-            "temperature": 0.5,
-            "seed": 0,
         },
     },
     "h3": {

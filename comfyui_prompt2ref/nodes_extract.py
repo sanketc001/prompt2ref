@@ -1,4 +1,7 @@
-"""prompt -> named entities, using a local CLIP-loaded LLM instead of Claude."""
+"""prompt -> named entities, via a swappable LLM provider (P2RLocalProvider
+or P2RAnthropicProvider - see nodes_provider.py) instead of a hardcoded Claude
+API call.
+"""
 
 from __future__ import annotations
 
@@ -13,12 +16,9 @@ class P2RExtractEntities:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "clip": ("CLIP",),
+                "provider": ("P2R_PROVIDER",),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "use_llm": ("BOOLEAN", {"default": True}),
-                "max_length": ("INT", {"default": 768, "min": 128, "max": 4096}),
-                "temperature": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 2.0, "step": 0.05}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -27,7 +27,7 @@ class P2RExtractEntities:
     FUNCTION = "run"
     CATEGORY = "prompt2ref"
 
-    def run(self, clip, prompt, use_llm=True, max_length=768, temperature=0.4, seed=0):
+    def run(self, provider, prompt, use_llm=True):
         from prompt2ref.entities import Entity, EntityType, dedupe_entities
         from prompt2ref.extract import SYSTEM, heuristic_entities
 
@@ -38,16 +38,14 @@ class P2RExtractEntities:
         if prompt and use_llm:
             try:
                 type_list = ", ".join(t.value for t in EntityType)
-                instruction = (
+                system_prompt = (
                     SYSTEM + "\n\n"
                     "Output ONLY a single JSON object, no prose, no code fence, of the exact "
                     'shape {"entities": [{"name": str, "type": one of [%s], '
                     '"descriptor": str, "search_name": str, "aliases": [str], '
-                    '"mention": str, "confidence": number 0-1}]}.'
-                    "\n\nPROMPT:\n%s" % (type_list, prompt)
+                    '"mention": str, "confidence": number 0-1}]}.' % type_list
                 )
-                text = local_llm.generate_text(
-                    clip, instruction, max_length=max_length, temperature=temperature, seed=seed)
+                text = provider.generate(system_prompt, "PROMPT:\n" + prompt)
                 data = local_llm.extract_json(text)
                 if isinstance(data, dict) and isinstance(data.get("entities"), list):
                     entities = [
@@ -56,7 +54,7 @@ class P2RExtractEntities:
                     ]
                     used_llm = True
             except Exception as exc:
-                print("[prompt2ref] local extraction failed (%r); using heuristic fallback" % exc)
+                print("[prompt2ref] LLM extraction failed (%r); using heuristic fallback" % exc)
 
         if not entities:
             entities = heuristic_entities(prompt)
@@ -64,7 +62,7 @@ class P2RExtractEntities:
 
         payload = [e.to_dict() for e in entities]
         if payload:
-            readable = ("[local llm] " if used_llm else "[heuristic] ") + ", ".join(
+            readable = ("[llm] " if used_llm else "[heuristic] ") + ", ".join(
                 "%s (%s)" % (e["name"], e["type"]) for e in payload)
         else:
             readable = "(no entities found)"
@@ -72,4 +70,4 @@ class P2RExtractEntities:
 
 
 NODE_CLASS_MAPPINGS = {"P2RExtractEntities": P2RExtractEntities}
-NODE_DISPLAY_NAME_MAPPINGS = {"P2RExtractEntities": "P2R Extract Entities (local LLM)"}
+NODE_DISPLAY_NAME_MAPPINGS = {"P2RExtractEntities": "P2R Extract Entities"}
