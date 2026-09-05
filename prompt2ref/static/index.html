@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt2Ref — MiniMax H3</title>
+<style>
+  :root{
+    --bg:#0d0f13; --panel:#151920; --panel-2:#1c2129; --line:#262d38;
+    --text:#e6e9ef; --muted:#8c95a5; --accent:#6ea8fe; --accent-2:#9d7bff;
+    --ok:#4ade80; --warn:#fbbf24; --err:#f87171;
+    --radius:10px; --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:baseline;gap:14px;padding:14px 22px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:20}
+  header h1{margin:0;font-size:16px;letter-spacing:.02em}
+  header h1 span{background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  header .meta{color:var(--muted);font-size:11.5px;font-family:var(--mono)}
+  main{max-width:1180px;margin:0 auto;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:16px}
+  .card > h2{margin:0 0 12px;font-size:12px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.09em;font-weight:600;display:flex;align-items:center;gap:8px}
+  .card > h2 .n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+    border-radius:50%;background:var(--panel-2);border:1px solid var(--line);
+    font-size:10px;color:var(--text)}
+  .card > h2 .hint{text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)}
+  textarea{width:100%;min-height:88px;resize:vertical;background:var(--panel-2);
+    color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;
+    font:14px/1.55 inherit}
+  textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+  button:hover:not(:disabled){border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:linear-gradient(90deg,#2f6fd0,#6a4fd0);border-color:transparent;color:#fff}
+  button.danger{border-color:#5a2b2b;color:#f8b4b4}
+  button.ghost{background:none}
+  button.tiny{padding:3px 8px;font-size:12px}
+  input[type=text],input[type=number],select{background:var(--panel-2);color:var(--text);
+    border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit}
+  .grow{flex:1;min-width:100px}
+  .muted{color:var(--muted)}
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em}
+  label.f > *{text-transform:none;letter-spacing:0}
+  label.chk{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+  .readout{font-family:var(--mono);font-size:12px;color:var(--accent);
+    background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  .ent{display:grid;grid-template-columns:1.3fr .85fr 1.3fr auto;gap:8px;align-items:center;
+    padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);margin-bottom:7px}
+  .ent input,.ent select{width:100%}
+  #log{font-family:var(--mono);font-size:11.5px;background:#0a0c10;border:1px solid var(--line);
+    border-radius:8px;padding:10px;max-height:170px;overflow:auto;white-space:pre-wrap}
+  #log div{padding:1px 0}
+  .t-image,.t-done,.t-result{color:var(--ok)} .t-search,.t-waiting{color:var(--muted)}
+  .t-shot_start,.t-submitted,.t-build{color:var(--accent)}
+  .t-fatal,.t-entity_error,.t-shot_empty,.t-error{color:var(--err)}
+  .t-shot_cached,.t-refill,.t-warning{color:var(--warn)} .t-rejected{color:var(--err)}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .egrp{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .egrp h3{margin:0;padding:10px 13px;font-size:13px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .badge{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;padding:11px}
+  .th{position:relative;aspect-ratio:3/4;border-radius:6px;overflow:hidden;background:#0a0c10;
+    border:1px solid var(--line);cursor:pointer}
+  .th img{width:100%;height:100%;object-fit:cover;display:block}
+  .th .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(6,8,12,.85);
+    font-size:9.5px;padding:3px 5px;font-family:var(--mono);display:flex;justify-content:space-between;gap:4px}
+  .th .del{position:absolute;top:3px;right:3px;background:rgba(6,8,12,.8);border:none;color:#fff;
+    border-radius:5px;padding:0 6px;font-size:13px;line-height:1.5;cursor:pointer;opacity:0}
+  .th:hover .del{opacity:1}
+  .empty{padding:13px;color:var(--muted);font-size:13px}
+  .tabs{display:flex;gap:4px;margin-bottom:14px}
+  .tabs button{border-radius:999px;padding:6px 14px}
+  .tabs button[aria-selected=true]{background:var(--panel-2);border-color:var(--accent);color:#fff}
+  code.path{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-all}
+
+  /* stage: live preview + final video */
+  .stage{background:#07090c;border:1px solid var(--line);border-radius:var(--radius);
+    display:flex;align-items:center;justify-content:center;min-height:280px;overflow:hidden;position:relative}
+  .stage img,.stage video{max-width:100%;max-height:62vh;display:block}
+  .stage .idle{color:var(--muted);font-size:13px;padding:40px;text-align:center}
+  .bar{height:4px;background:var(--panel-2);border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar > i{display:block;height:100%;width:0;border-radius:999px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .25s}
+  .stat{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;
+    color:var(--muted);margin-top:8px}
+  .stat b{color:var(--text);font-weight:600}
+  .pill{font-size:11px;font-family:var(--mono);padding:2px 9px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted)}
+  .pill.live{border-color:#2f6fd0;color:var(--accent)}
+  .pill.ok{border-color:#2f7a4a;color:var(--ok)}
+  .pill.err{border-color:#7a2f2f;color:var(--err)}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;
+    padding:0;max-width:92vw;max-height:92vh}
+  dialog img{max-width:88vw;max-height:78vh;display:block}
+  dialog .dbar{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;
+    border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+  ::backdrop{background:rgba(0,0,0,.75)}
+  pre.prompt{white-space:pre-wrap;background:#0a0c10;border:1px solid var(--line);
+    border-radius:8px;padding:12px;font-size:11.5px;max-height:280px;overflow:auto;margin:10px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Prompt2Ref</span> → MiniMax H3</h1>
+  <div class="meta" id="cfg">loading…</div>
+</header>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="make">Generate</button>
+    <button role="tab" aria-selected="false" data-tab="library">Library</button>
+  </div>
+
+  <section id="tab-make">
+
+    <div class="card">
+      <h2><span class="n">1</span> Prompt <span class="hint">— name the entities you want references for</span></h2>
+      <textarea id="prompt" placeholder="Tom Cruise walks out of the Taj Mahal holding an iPhone 16 Pro, golden hour"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="generate">Generate video</button>
+        <button id="analyze">Analyze only</button>
+        <button id="fetchrefs" disabled>Fetch references</button>
+        <span class="grow"></span>
+        <label class="chk"><input type="checkbox" id="usellm" checked> use Claude</label>
+        <label class="chk"><input type="checkbox" id="verify"> visual QC</label>
+        <label class="chk"><input type="checkbox" id="force"> refetch</label>
+        <label class="chk"><input type="checkbox" id="reuse" checked> reuse cached refs</label>
+      </div>
+    </div>
+
+    <div class="card" id="entcard" hidden>
+      <h2><span class="n">2</span> Entities <span class="hint">— type drives which shots are collected</span></h2>
+      <div id="entities"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="tiny ghost" id="addent">+ add entity</button>
+        <span class="grow"></span>
+        <span class="muted" id="entcount"></span>
+      </div>
+      <div class="gal" id="gallery" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">3</span> Settings</h2>
+      <div class="grid">
+        <label class="f">aspect
+          <select id="s_aspect">
+            <option value="16:9">16:9 landscape</option>
+            <option value="9:16">9:16 vertical</option>
+            <option value="1:1">1:1 square</option>
+            <option value="4:3">4:3</option>
+            <option value="21:9">21:9 scope</option>
+          </select>
+        </label>
+        <label class="f">video megapixels
+          <input type="number" id="s_mp" value="0.4" step="0.05" min="0.1" max="2">
+        </label>
+        <label class="f">length (seconds)
+          <input type="number" id="s_seconds" value="1" step="0.5" min="0.2" max="15">
+        </label>
+        <label class="f">frames (override)
+          <input type="number" id="s_frames" placeholder="auto" step="17" min="5">
+        </label>
+        <label class="f">reference packing
+          <select id="s_pack">
+            <option value="per-entity">per-entity sheet</option>
+            <option value="primary">primary frame only</option>
+            <option value="per-image">one slot per image</option>
+            <option value="all-in-one">all on one sheet</option>
+          </select>
+        </label>
+        <label class="f">reference size
+          <select id="s_refmode">
+            <option value="1024">max 1024px</option>
+            <option value="1536">max 1536px</option>
+            <option value="2048">max 2048px</option>
+            <option value="native">native</option>
+          </select>
+        </label>
+        <label class="f">reference detail
+          <select id="s_refimgsize">
+            <option value="match">match — scale refs to output area</option>
+            <option value="max">max — 2048px short edge (slower)</option>
+          </select>
+        </label>
+        <label class="f">steps
+          <input type="number" id="s_steps" value="20" min="1" max="60">
+        </label>
+        <label class="f">seed
+          <input type="number" id="s_seed" value="0" min="0">
+        </label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="readout grow" id="readout">—</div>
+        <label class="chk"><input type="checkbox" id="s_preview" checked> live preview</label>
+        <label class="f" style="width:104px">preview frames
+          <input type="number" id="s_pvframes" value="4" min="1" max="24">
+        </label>
+        <label class="chk"><input type="checkbox" id="s_labels"> sheet labels</label>
+        <label class="chk"><input type="checkbox" id="s_halfres"> half-res downscale</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">4</span> Output
+        <span class="pill" id="status">idle</span>
+        <span class="grow"></span>
+        <button class="tiny danger" id="cancel" hidden>cancel render</button>
+      </h2>
+      <div class="stage" id="stage">
+        <div class="idle">The sampling preview appears here while the model runs,<br>then the finished clip replaces it.</div>
+      </div>
+      <div class="bar"><i id="progbar"></i></div>
+      <div class="stat" id="stat"></div>
+      <div class="row" style="margin-top:10px">
+        <code class="path" id="outpath"></code>
+        <span class="grow"></span>
+        <a id="download" hidden download><button class="tiny">download</button></a>
+        <button class="tiny ghost" id="showprompt" hidden>show H3 prompt</button>
+        <button class="tiny ghost" id="showslots" hidden>show picture slots</button>
+      </div>
+      <pre class="prompt" id="h3prompt" hidden></pre>
+      <div class="thumbs" id="slots" hidden style="padding:12px 0"></div>
+    </div>
+
+    <div class="card" id="logcard" hidden>
+      <h2>Progress log</h2>
+      <div id="log"></div>
+    </div>
+  </section>
+
+  <section id="tab-library" hidden>
+    <div class="card">
+      <div class="row">
+        <strong>Reference library</strong>
+        <span class="muted" id="libmeta"></span>
+        <span class="grow"></span>
+        <button class="tiny ghost" id="reloadlib">reload</button>
+      </div>
+    </div>
+    <div class="gal" id="libgal"></div>
+  </section>
+</main>
+
+<dialog id="lightbox">
+  <img id="lbimg" alt="">
+  <div class="dbar"><span id="lbcap"></span><button class="tiny" id="lbclose">close</button></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt; return n; };
+const NL = String.fromCharCode(10);
+
+const TYPES = ["person","fictional_character","landmark","place","organization","product",
+               "vehicle","animal","artwork","food","event","other"];
+
+let entities = [];
+let groups = {};
+let busy = false;
+
+/* ---------- config ---------- */
+fetch("/api/config").then(r => r.json()).then(c => {
+  $("#cfg").textContent = `${c.refs_dir}  ·  ${c.sources.join(", ")}  ·  ` +
+    (c.llm_available ? c.model : "no API key — heuristic NER");
+  if (!c.llm_available) {
+    $("#usellm").checked = false; $("#usellm").disabled = true; $("#verify").disabled = true;
+  } else if (c.verify_default) { $("#verify").checked = true; }
+});
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('[role=tab]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === b));
+  $("#tab-make").hidden = b.dataset.tab !== "make";
+  $("#tab-library").hidden = b.dataset.tab !== "library";
+  if (b.dataset.tab === "library") loadLibrary();
+});
+
+/* ---------- settings readout (mirrors the server-side maths) ---------- */
+function parseAspect(a) { const [w, h] = a.split(":").map(Number); return w / h; }
+
+function solveRes(mp, aspect, mult = 32) {
+  const ratio = parseAspect(aspect), target = mp * 1e6;
+  const w = Math.ceil(Math.sqrt(target * ratio) / mult) * mult;
+  const h = Math.ceil(Math.sqrt(target / ratio) / mult) * mult;
+  return [Math.max(mult, w), Math.max(mult, h)];
+}
+
+// The template quantises length to frame counts congruent to 5 (mod 17).
+function framesFor(seconds, fps = 24) {
+  const base = Math.max(5, Math.round(seconds * fps));
+  return base + ((5 - (base % 17)) % 17);
+}
+
+function updateReadout() {
+  const [w, h] = solveRes(Number($("#s_mp").value), $("#s_aspect").value);
+  const override = Number($("#s_frames").value);
+  const f = override || framesFor(Number($("#s_seconds").value));
+  const secs = (f / 24).toFixed(2);
+  const mp = (w * h / 1e6).toFixed(2);
+  let txt = `${w}×${h}  (${mp} MP)   ·   ${f} frames  ≈ ${secs}s @ 24fps`;
+  if (!override && Math.abs(f / 24 - Number($("#s_seconds").value)) > 0.05)
+    txt += `   ·   quantised from ${$("#s_seconds").value}s (17k+5 rule)`;
+  if (override && (override - 5) % 17 !== 0) txt += "   ·   ⚠ not 5 mod 17";
+  $("#readout").textContent = txt;
+}
+["s_mp","s_aspect","s_seconds","s_frames"].forEach(id =>
+  $("#" + id).addEventListener("input", updateReadout));
+updateReadout();
+
+/* ---------- entity editor ---------- */
+function renderEntities() {
+  const wrap = $("#entities");
+  wrap.textContent = "";
+  entities.forEach((e, i) => {
+    const row = el("div", "ent");
+    const name = el("input"); name.type = "text"; name.value = e.name;
+    name.placeholder = "name"; name.oninput = () => { e.name = name.value; };
+    const type = el("select");
+    TYPES.forEach(t => { const o = el("option", null, t.replace(/_/g, " ")); o.value = t; type.append(o); });
+    type.value = e.type || "other";
+    type.onchange = () => { e.type = type.value; };
+    const desc = el("input"); desc.type = "text"; desc.value = e.descriptor || "";
+    desc.placeholder = "disambiguator (e.g. American actor)";
+    desc.oninput = () => { e.descriptor = desc.value; };
+    const rm = el("button", "tiny ghost", "remove");
+    rm.onclick = () => { entities.splice(i, 1); renderEntities(); };
+    row.append(name, type, desc, rm);
+    wrap.append(row);
+  });
+  $("#entcard").hidden = false;
+  $("#entcount").textContent = `${entities.length} entit${entities.length === 1 ? "y" : "ies"}`;
+  $("#fetchrefs").disabled = entities.length === 0;
+}
+
+$("#addent").onclick = () => {
+  entities.push({ name: "", type: "other", descriptor: "", search_name: "", aliases: [], mention: "", confidence: 1 });
+  renderEntities();
+};
+
+/* ---------- ndjson stream helper ---------- */
+async function streamNDJSON(url, body, handle) {
+  const res = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).detail || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split(NL);
+    buf = lines.pop();
+    for (const l of lines) if (l.trim()) handle(JSON.parse(l));
+  }
+}
+
+/* ---------- log ---------- */
+function logLine(ev) {
+  $("#logcard").hidden = false;
+  const box = $("#log");
+  const msgs = {
+    entities: () => `${ev.entities.length} entities: ` + ev.entities.map(e => `${e.name} (${e.type})`).join(", "),
+    shot_start: () => `> ${ev.entity} / ${ev.label} — fetching ${ev.want}`,
+    shot_cached: () => `= ${ev.entity} / ${ev.shot} — cached ${ev.have}`,
+    shot_empty: () => `! ${ev.entity} / ${ev.shot} — nothing usable`,
+    search: () => `  ? ${ev.query} → ${ev.hits} hits`,
+    image: () => `  + ${ev.entity}/${ev.file}  ${ev.width}×${ev.height}  [${ev.source}]`,
+    rejected: () => `  - ${ev.entity}/${ev.file} rejected — ${ev.reason}`,
+    refill: () => `  ~ ${ev.entity} / ${ev.shot} — refilling ${ev.want}`,
+    entity_done: () => `OK ${ev.entity} — ${ev.count} images`,
+    entity_error: () => `XX ${ev.entity} — ${ev.error}`,
+    fatal: () => `XX ${ev.error}`,
+    error: () => `XX ${ev.error}`,
+    warning: () => `!  ${ev.message}`,
+    done: () => `== ${ev.total_images != null ? ev.total_images + " images" : "render finished in " + ev.elapsed + "s"}`,
+    build: () => `built ${ev.build.pictures.length} picture slot(s) — ${ev.build.width}×${ev.build.height}, ${ev.build.frames} frames`,
+    submitted: () => `submitted ${ev.prompt_id.slice(0, 8)} — ${ev.steps} steps, preview ${ev.preview ? "on" : "off"}`,
+    node: () => `node ${ev.node ?? "(finished)"}`,
+    result: () => `rendered in ${ev.elapsed}s`,
+  };
+  const fn = msgs[ev.type];
+  if (!fn) return;
+  const line = el("div", "t-" + ev.type, fn());
+  box.append(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- reference gallery ---------- */
+function group(slug, name, type) {
+  if (groups[slug]) return groups[slug];
+  const node = el("div", "egrp");
+  const h = el("h3");
+  h.append(el("span", null, name || slug), el("span", "badge", type || "other"));
+  const thumbs = el("div", "thumbs");
+  node.append(h, thumbs);
+  $("#gallery").append(node);
+  groups[slug] = { node, thumbs };
+  return groups[slug];
+}
+
+function addThumb(container, slug, img, srcOverride) {
+  const d = el("div", "th");
+  const im = el("img");
+  im.loading = "lazy";
+  im.src = srcOverride || `/files/${slug}/${img.file}?t=${Date.now()}`;
+  im.alt = `${slug} ${img.shot || ""}`;
+  d.onclick = () => {
+    $("#lbimg").src = im.src;
+    $("#lbcap").textContent = `${slug}/${img.file} · ${img.width}×${img.height}`;
+    $("#lightbox").showModal();
+  };
+  const cap = el("div", "cap");
+  cap.append(el("span", null, img.shot || ""), el("span", null, `${img.width}×${img.height}`));
+  d.append(im, cap);
+  if (!srcOverride) {
+    const del = el("button", "del", "×");
+    del.title = "delete this reference";
+    del.onclick = async (e) => {
+      e.stopPropagation();
+      await fetch("/api/image", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, file: img.file })
+      });
+      d.remove();
+    };
+    d.append(del);
+  }
+  container.append(d);
+}
+
+function renderManifest(manifest) {
+  $("#gallery").textContent = ""; groups = {};
+  manifest.entities.forEach(e => {
+    const g = group(e.slug, e.name, e.type);
+    if (!e.images.length) g.node.append(el("div", "empty", "no references found"));
+    e.images.forEach(img => addThumb(g.thumbs, e.slug, img));
+  });
+}
+
+/* ---------- status helpers ---------- */
+function setStatus(text, cls) {
+  const s = $("#status");
+  s.textContent = text;
+  s.className = "pill" + (cls ? " " + cls : "");
+}
+function setBusy(v) {
+  busy = v;
+  ["generate","analyze","fetchrefs"].forEach(id => { $("#" + id).disabled = v; });
+  $("#fetchrefs").disabled = v || entities.length === 0;
+}
+
+/* ---------- step 1: analyze ---------- */
+async function analyze() {
+  const prompt = $("#prompt").value.trim();
+  if (!prompt) return false;
+  setStatus("analyzing", "live");
+  const r = await fetch("/api/extract", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, use_llm: $("#usellm").checked })
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || "extract failed");
+  entities = data.entities;
+  renderEntities();
+  return true;
+}
+
+$("#analyze").onclick = async () => {
+  setBusy(true);
+  try { await analyze(); setStatus("analyzed"); }
+  catch (e) { setStatus("failed", "err"); alert(e.message); }
+  finally { setBusy(false); }
+};
+
+/* ---------- step 2: fetch references ---------- */
+async function fetchRefs() {
+  setStatus("fetching references", "live");
+  $("#gallery").textContent = ""; groups = {};
+  let manifest = null;
+  await streamNDJSON("/api/fetch", {
+    prompt: $("#prompt").value.trim(),
+    entities, use_llm: $("#usellm").checked,
+    force: $("#force").checked, verify: $("#verify").checked,
+  }, ev => {
+    logLine(ev);
+    if (ev.type === "entities") ev.entities.forEach(e => group(e.slug, e.name, e.type));
+    else if (ev.type === "image") addThumb((groups[ev.entity] || group(ev.entity, ev.entity, "")).thumbs, ev.entity, ev);
+    else if (ev.type === "manifest") { manifest = ev.manifest; renderManifest(manifest); }
+  });
+  return manifest;
+}
+
+$("#fetchrefs").onclick = async () => {
+  setBusy(true);
+  try { await fetchRefs(); setStatus("references ready", "ok"); }
+  catch (e) { setStatus("failed", "err"); alert(e.message); }
+  finally { setBusy(false); }
+};
+
+/* ---------- step 3/4: build + render ---------- */
+function renderRequest() {
+  const refmode = $("#s_refmode").value;
+  const frames = Number($("#s_frames").value) || null;
+  return {
+    prompt: $("#prompt").value.trim(),
+    pack: $("#s_pack").value,
+    ref_native: refmode === "native",
+    ref_max: refmode === "native" ? null : Number(refmode),
+    labels: $("#s_labels").checked ? true : null,
+    seconds: Number($("#s_seconds").value),
+    frames,
+    megapixels: Number($("#s_mp").value),
+    aspect: $("#s_aspect").value,
+    half_res: $("#s_halfres").checked,
+    use_llm: $("#usellm").checked,
+    steps: Number($("#s_steps").value),
+    seed: Number($("#s_seed").value),
+    ref_image_size: $("#s_refimgsize").value,
+    live_preview: $("#s_preview").checked,
+    preview_frames: Number($("#s_pvframes").value),
+  };
+}
+
+function showStage(node) {
+  const stage = $("#stage");
+  stage.textContent = "";
+  stage.append(node);
+}
+
+// Reuse the element across steps and swap only the src — recreating a <video>
+// every step restarts playback and thrashes layout.
+function showPreview(ev) {
+  if (!ev.image) return;
+  const src = `data:${ev.mime};base64,${ev.image}`;
+  const wantVideo = (ev.mime || "").startsWith("video/");
+  const tag = wantVideo ? "VIDEO" : "IMG";
+  let node = $("#stage").firstElementChild;
+  if (!node || node.tagName !== tag || !node.dataset.preview) {
+    node = el(wantVideo ? "video" : "img");
+    node.dataset.preview = "1";
+    if (wantVideo) {
+      node.autoplay = true; node.loop = true; node.muted = true; node.playsInline = true;
+    } else {
+      node.alt = "sampling preview";
+    }
+    showStage(node);
+  }
+  node.src = src;
+  if (wantVideo) node.play().catch(() => {});
+}
+
+function setStat(parts) {
+  const s = $("#stat");
+  s.textContent = "";
+  parts.filter(Boolean).forEach(([k, v]) => {
+    const d = el("span");
+    d.append(document.createTextNode(k + " "), el("b", null, String(v)));
+    s.append(d);
+  });
+}
+
+async function render() {
+  setStatus("building", "live");
+  $("#progbar").style.width = "0%";
+  $("#h3prompt").hidden = true; $("#slots").hidden = true;
+  $("#download").hidden = true; $("#outpath").textContent = "";
+  $("#cancel").hidden = false;
+  showStage(el("div", "idle", "waiting for the first sampler step…"));
+
+  let build = null, lastStep = 0, totalSteps = Number($("#s_steps").value);
+
+  await streamNDJSON("/api/render", renderRequest(), ev => {
+    logLine(ev);
+    if (ev.type === "build") {
+      build = ev.build;
+      $("#h3prompt").textContent = build.prompt +
+        (build.warnings.length ? NL + NL + "--- warnings ---" + NL + build.warnings.join(NL) : "");
+      $("#showprompt").hidden = false;
+      $("#showslots").hidden = false;
+      const slots = $("#slots"); slots.textContent = "";
+      build.pictures.forEach(p => addThumb(slots, "", p,
+        `/api/comfy/preview/${encodeURIComponent(p.file)}?t=${Date.now()}`));
+      setStatus("loading models", "live");
+      setStat([["size", `${build.width}×${build.height}`], ["frames", build.frames],
+               ["slots", build.pictures.length]]);
+    } else if (ev.type === "submitted") {
+      totalSteps = ev.steps;
+      setStatus(ev.preview ? "sampling (live)" : "sampling", "live");
+    } else if (ev.type === "preview") {
+      showPreview(ev);
+      lastStep = ev.step || lastStep;
+      const total = ev.total || totalSteps;
+      $("#progbar").style.width = Math.min(100, 100 * lastStep / Math.max(1, total)) + "%";
+      setStatus("sampling (live)", "live");
+      setStat([
+        ["step", `${lastStep}/${total}`],
+        ev.avg_step_ms ? ["s/step", (ev.avg_step_ms / 1000).toFixed(1)] : null,
+        ["elapsed", `${Math.round(ev.elapsed)}s`],
+        build ? ["size", `${build.width}×${build.height}`] : null,
+        build ? ["frames", build.frames] : null,
+      ]);
+    } else if (ev.type === "progress" && ev.max) {
+      $("#progbar").style.width = Math.min(100, 100 * ev.value / ev.max) + "%";
+    } else if (ev.type === "waiting") {
+      setStat([["elapsed", `${Math.round(ev.elapsed)}s`], ["state", "loading models / encoding"]]);
+    } else if (ev.type === "error") {
+      throw new Error(ev.error);
+    } else if (ev.type === "result") {
+      $("#progbar").style.width = "100%";
+      const out = ev.outputs[0];
+      if (out) {
+        const v = el("video");
+        v.controls = true; v.autoplay = true; v.loop = true; v.playsInline = true;
+        v.src = out.url;
+        showStage(v);
+        $("#outpath").textContent = out.path;
+        const a = $("#download");
+        a.href = out.url; a.download = out.name; a.hidden = false;
+      }
+      setStatus(`done in ${Math.round(ev.elapsed)}s`, "ok");
+      setStat([["render", `${Math.round(ev.elapsed)}s`],
+               build ? ["size", `${build.width}×${build.height}`] : null,
+               build ? ["frames", build.frames] : null,
+               ["files", ev.outputs.length]]);
+    }
+  });
+  $("#cancel").hidden = true;
+}
+
+$("#generate").onclick = async () => {
+  setBusy(true);
+  try {
+    if (!$("#prompt").value.trim()) { alert("write a prompt first"); return; }
+    if (!entities.length) await analyze();
+    if (!$("#reuse").checked || !Object.keys(groups).length) await fetchRefs();
+    await render();
+  } catch (e) {
+    setStatus("failed", "err");
+    $("#cancel").hidden = true;
+    showStage(el("div", "idle", "render failed — see the progress log"));
+    logLine({ type: "error", error: e.message });
+  } finally { setBusy(false); }
+};
+
+$("#cancel").onclick = async () => {
+  await fetch("/api/render/cancel", { method: "POST" });
+  setStatus("cancelling", "err");
+};
+
+$("#showprompt").onclick = () => { $("#h3prompt").hidden = !$("#h3prompt").hidden; };
+$("#showslots").onclick = () => { $("#slots").hidden = !$("#slots").hidden; };
+$("#lbclose").onclick = () => $("#lightbox").close();
+$("#lightbox").onclick = e => { if (e.target.id === "lightbox") $("#lightbox").close(); };
+$("#prompt").addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") $("#generate").click();
+});
+
+/* ---------- URL prefill ----------
+   /?prompt=...&seconds=10&aspect=16:9&mp=0.4&pack=per-entity&ref=1024
+     &steps=20&seed=0&refdetail=match&verify=1&run=1
+   `run=1` starts the full chain on load, so a link can hand someone a finished
+   set of settings and let them just watch it render. */
+(function prefill() {
+  const q = new URLSearchParams(location.search);
+  if (!q.toString()) return;
+  const set = (id, key, transform) => {
+    if (!q.has(key)) return;
+    const node = $("#" + id);
+    const v = q.get(key);
+    if (node.type === "checkbox") node.checked = v !== "0" && v !== "false";
+    else node.value = transform ? transform(v) : v;
+  };
+  set("prompt", "prompt");
+  set("s_seconds", "seconds");
+  set("s_frames", "frames");
+  set("s_aspect", "aspect");
+  set("s_mp", "mp");
+  set("s_pack", "pack");
+  set("s_refmode", "ref");
+  set("s_refimgsize", "refdetail");
+  set("s_steps", "steps");
+  set("s_seed", "seed");
+  set("s_pvframes", "pvframes");
+  set("verify", "verify");
+  set("force", "force");
+  set("s_preview", "preview");
+  set("s_labels", "labels");
+  updateReadout();
+  if (q.get("run") === "1") {
+    // let /api/config land first so the Claude toggles settle
+    setTimeout(() => $("#generate").click(), 700);
+  }
+})();
+
+/* ---------- library ---------- */
+async function loadLibrary() {
+  const idx = await (await fetch("/api/library")).json();
+  $("#libmeta").textContent = `${idx.entities.length} entities on disk`;
+  const gal = $("#libgal");
+  gal.textContent = "";
+  for (const e of idx.entities) {
+    const node = el("div", "egrp");
+    const h = el("h3");
+    h.append(el("span", null, e.name), el("span", "badge", `${e.type} · ${e.images}`));
+    const thumbs = el("div", "thumbs");
+    node.append(h, thumbs);
+    gal.append(node);
+    const full = await (await fetch(`/api/entity/${e.slug}`)).json();
+    full.images.forEach(img => addThumb(thumbs, e.slug, img));
+    if (!full.images.length) node.append(el("div", "empty", "empty folder"));
+  }
+}
+$("#reloadlib").onclick = loadLibrary;
+</script>
+</body>
+</html>

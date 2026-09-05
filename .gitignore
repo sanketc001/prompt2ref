@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+refs/
+runs/
+.venv/
+render.log
+render_ui_test.log
