@@ -24,17 +24,28 @@ def fetch_object_info(class_types):
 
 
 def ordered_fields(node_info):
-    """[(name, type_str, is_widget, default)] in the class's declared schema order."""
+    """[(name, type_str, is_widget, default)] in the class's declared schema order.
+
+    Two combo encodings coexist in this ComfyUI version: legacy nodes report
+    the options as a bare list in slot 0; newer io.Schema nodes (e.g.
+    KSamplerSelect, BasicScheduler) report the string "COMBO" in slot 0 with
+    the options list under opts["options"].
+    """
     out = []
     for section in ("required", "optional"):
         for name, spec in node_info["input"].get(section, {}).items():
             type_spec, opts = spec[0], (spec[1] if len(spec) > 1 else {})
-            type_str = type_spec if isinstance(type_spec, str) else "COMBO"
+            if isinstance(type_spec, list):
+                type_str, options = "COMBO", type_spec
+            elif type_spec == "COMBO":
+                type_str, options = "COMBO", opts.get("options", [])
+            else:
+                type_str, options = type_spec, None
             is_widget = type_str not in CONNECTION_ONLY
             if "default" in opts:
                 default = opts["default"]
-            elif isinstance(type_spec, list) and type_spec:
-                default = type_spec[0]
+            elif options:
+                default = options[0]
             else:
                 default = ""
             out.append((name, type_str, is_widget, default))
@@ -68,8 +79,22 @@ def main():
         ui_inputs = []
         widgets_values = []
 
+        # VHS_VideoCombine serializes its widgets as a {name: value} dict in
+        # the UI format, not a positional list like every other node here.
+        dict_widgets = {} if class_type == "VHS_VideoCombine" else None
+
         for name, type_str, is_widget, default in fields:
             value = raw_inputs.get(name)
+
+            if dict_widgets is not None and is_widget:
+                is_link = isinstance(value, list) and len(value) == 2 and value[0] in node_id
+                if is_link:
+                    src_key, src_slot = value
+                    lid = new_link(src_key, src_slot, node_id[key], len(ui_inputs), type_str)
+                    ui_inputs.append({"name": name, "type": type_str, "link": lid})
+                else:
+                    dict_widgets[name] = value if value is not None else default
+                continue
 
             if name == "ref_images" and isinstance(value, dict):
                 # Autogrow: one dotted-name input entry per slot (matches the
@@ -115,7 +140,7 @@ def main():
             "outputs": ui_outputs,
             "title": key,
             "properties": {"Node name for S&R": class_type},
-            "widgets_values": widgets_values,
+            "widgets_values": dict_widgets if dict_widgets is not None else widgets_values,
         })
 
     # second pass: fill in each output's "links" list now that all links exist
