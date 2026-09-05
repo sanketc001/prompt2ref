@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 refs/
 runs/
+comfy_staging/
 .venv/
 render.log
 render_ui_test.log
