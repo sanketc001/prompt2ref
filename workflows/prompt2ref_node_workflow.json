@@ -1,8 +1,8 @@
 {
   "id": "prompt2ref-node-workflow",
   "revision": 0,
-  "last_node_id": 1027,
-  "last_link_id": 42,
+  "last_node_id": 1028,
+  "last_link_id": 43,
   "nodes": [
     {
       "id": 1000,
@@ -43,7 +43,7 @@
       "type": "P2RLocalProvider",
       "pos": [
         380,
-        260
+        1040
       ],
       "size": [
         340,
@@ -83,7 +83,7 @@
       "type": "P2RAnthropicProvider",
       "pos": [
         760,
-        260
+        520
       ],
       "size": [
         340,
@@ -118,7 +118,7 @@
       "type": "CLIPLoader",
       "pos": [
         1140,
-        0
+        1040
       ],
       "size": [
         340,
@@ -152,7 +152,7 @@
       "type": "VAELoader",
       "pos": [
         1520,
-        0
+        1040
       ],
       "size": [
         340,
@@ -168,7 +168,7 @@
           "type": "VAE",
           "links": [
             21,
-            38
+            39
           ]
         }
       ],
@@ -185,7 +185,7 @@
       "type": "VAELoader",
       "pos": [
         1900,
-        1040
+        520
       ],
       "size": [
         340,
@@ -201,7 +201,7 @@
           "type": "VAE",
           "links": [
             22,
-            40
+            41
           ]
         }
       ],
@@ -218,7 +218,7 @@
       "type": "P2RExtractEntities",
       "pos": [
         2280,
-        260
+        780
       ],
       "size": [
         340,
@@ -266,7 +266,7 @@
       "type": "P2REntitySlot",
       "pos": [
         2660,
-        780
+        260
       ],
       "size": [
         340,
@@ -309,7 +309,7 @@
       "type": "P2REntitySlot",
       "pos": [
         3040,
-        520
+        260
       ],
       "size": [
         340,
@@ -438,7 +438,7 @@
       "type": "P2REntitySlot",
       "pos": [
         4180,
-        260
+        520
       ],
       "size": [
         340,
@@ -481,7 +481,7 @@
       "type": "P2RCombineEntities",
       "pos": [
         4560,
-        520
+        1040
       ],
       "size": [
         340,
@@ -548,7 +548,7 @@
       "type": "P2RFetchReferences",
       "pos": [
         4940,
-        0
+        520
       ],
       "size": [
         340,
@@ -589,7 +589,7 @@
       "type": "P2RVerifyReferences",
       "pos": [
         5320,
-        520
+        0
       ],
       "size": [
         340,
@@ -638,7 +638,7 @@
       "type": "P2RPackReferences",
       "pos": [
         5700,
-        0
+        520
       ],
       "size": [
         340,
@@ -739,7 +739,7 @@
       "type": "P2RBuildH3Prompt",
       "pos": [
         6080,
-        780
+        260
       ],
       "size": [
         340,
@@ -785,7 +785,7 @@
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
         6460,
-        780
+        1040
       ],
       "size": [
         340,
@@ -846,14 +846,14 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            31
+            32
           ]
         },
         {
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            36
+            37
           ]
         }
       ],
@@ -874,7 +874,7 @@
       "type": "UNETLoader",
       "pos": [
         6840,
-        260
+        520
       ],
       "size": [
         340,
@@ -889,7 +889,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            28
+            28,
+            29
           ]
         }
       ],
@@ -927,10 +928,7 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "links": [
-            29,
-            30
-          ]
+          "links": null
         }
       ],
       "title": "lora",
@@ -944,10 +942,10 @@
     },
     {
       "id": 1020,
-      "type": "RandomNoise",
+      "type": "ApplyVDNH3",
       "pos": [
         7600,
-        260
+        520
       ],
       "size": [
         340,
@@ -956,13 +954,59 @@
       "flags": {},
       "order": 20,
       "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            30,
+            31
+          ]
+        }
+      ],
+      "title": "vdn",
+      "properties": {
+        "Node name for S&R": "ApplyVDNH3"
+      },
+      "widgets_values": [
+        "vdn-minimax-h3-int8-convrot-comfyui",
+        true,
+        1.0,
+        "merge",
+        "stream",
+        "off",
+        true,
+        "grouped"
+      ]
+    },
+    {
+      "id": 1021,
+      "type": "RandomNoise",
+      "pos": [
+        7980,
+        520
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "NOISE",
           "type": "NOISE",
           "links": [
-            32
+            33
           ]
         }
       ],
@@ -975,24 +1019,24 @@
       ]
     },
     {
-      "id": 1021,
+      "id": 1022,
       "type": "BasicScheduler",
       "pos": [
-        7980,
-        780
+        8360,
+        0
       ],
       "size": [
         340,
         200
       ],
       "flags": {},
-      "order": 21,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 29
+          "link": 30
         }
       ],
       "outputs": [
@@ -1000,7 +1044,7 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            35
+            36
           ]
         }
       ],
@@ -1015,29 +1059,29 @@
       ]
     },
     {
-      "id": 1022,
+      "id": 1023,
       "type": "BasicGuider",
       "pos": [
-        8360,
-        260
+        8740,
+        1040
       ],
       "size": [
         340,
         200
       ],
       "flags": {},
-      "order": 22,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 30
+          "link": 31
         },
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 31
+          "link": 32
         }
       ],
       "outputs": [
@@ -1045,7 +1089,7 @@
           "name": "GUIDER",
           "type": "GUIDER",
           "links": [
-            33
+            34
           ]
         }
       ],
@@ -1056,18 +1100,18 @@
       "widgets_values": []
     },
     {
-      "id": 1023,
+      "id": 1024,
       "type": "KSamplerSelect",
       "pos": [
-        8740,
-        0
+        9120,
+        520
       ],
       "size": [
         340,
         200
       ],
       "flags": {},
-      "order": 23,
+      "order": 24,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1075,7 +1119,7 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            34
+            35
           ]
         }
       ],
@@ -1088,44 +1132,44 @@
       ]
     },
     {
-      "id": 1024,
+      "id": 1025,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        9120,
-        260
+        9500,
+        520
       ],
       "size": [
         340,
         200
       ],
       "flags": {},
-      "order": 24,
+      "order": 25,
       "mode": 0,
       "inputs": [
         {
           "name": "noise",
           "type": "NOISE",
-          "link": 32
+          "link": 33
         },
         {
           "name": "guider",
           "type": "GUIDER",
-          "link": 33
+          "link": 34
         },
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 34
+          "link": 35
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 35
+          "link": 36
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 36
+          "link": 37
         }
       ],
       "outputs": [
@@ -1138,8 +1182,8 @@
           "name": "denoised_output",
           "type": "LATENT",
           "links": [
-            37,
-            39
+            38,
+            40
           ]
         }
       ],
@@ -1155,52 +1199,11 @@
       ]
     },
     {
-      "id": 1025,
+      "id": 1026,
       "type": "VAEDecode",
       "pos": [
-        9500,
-        260
-      ],
-      "size": [
-        340,
-        200
-      ],
-      "flags": {},
-      "order": 25,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 37
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 38
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            41
-          ]
-        }
-      ],
-      "title": "decode_video",
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 1026,
-      "type": "VAEDecodeAudio",
-      "pos": [
         9880,
-        260
+        0
       ],
       "size": [
         340,
@@ -1213,32 +1216,32 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 39
+          "link": 38
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 40
+          "link": 39
         }
       ],
       "outputs": [
         {
-          "name": "AUDIO",
-          "type": "AUDIO",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
             42
           ]
         }
       ],
-      "title": "decode_audio",
+      "title": "decode_video",
       "properties": {
-        "Node name for S&R": "VAEDecodeAudio"
+        "Node name for S&R": "VAEDecode"
       },
       "widgets_values": []
     },
     {
       "id": 1027,
-      "type": "VHS_VideoCombine",
+      "type": "VAEDecodeAudio",
       "pos": [
         10260,
         780
@@ -1252,14 +1255,55 @@
       "mode": 0,
       "inputs": [
         {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 40
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 41
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            43
+          ]
+        }
+      ],
+      "title": "decode_audio",
+      "properties": {
+        "Node name for S&R": "VAEDecodeAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 1028,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        10640,
+        0
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
           "name": "images",
           "type": "IMAGE",
-          "link": 41
+          "link": 42
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 42
+          "link": 43
         }
       ],
       "outputs": [
@@ -1511,15 +1555,15 @@
     ],
     [
       29,
-      1019,
+      1018,
       0,
-      1021,
+      1020,
       0,
       "MODEL"
     ],
     [
       30,
-      1019,
+      1020,
       0,
       1022,
       0,
@@ -1527,97 +1571,105 @@
     ],
     [
       31,
+      1020,
+      0,
+      1023,
+      0,
+      "MODEL"
+    ],
+    [
+      32,
       1017,
       0,
-      1022,
+      1023,
       1,
       "CONDITIONING"
     ],
     [
-      32,
-      1020,
+      33,
+      1021,
       0,
-      1024,
+      1025,
       0,
       "NOISE"
-    ],
-    [
-      33,
-      1022,
-      0,
-      1024,
-      1,
-      "GUIDER"
     ],
     [
       34,
       1023,
       0,
+      1025,
+      1,
+      "GUIDER"
+    ],
+    [
+      35,
       1024,
+      0,
+      1025,
       2,
       "SAMPLER"
     ],
     [
-      35,
-      1021,
+      36,
+      1022,
       0,
-      1024,
+      1025,
       3,
       "SIGMAS"
     ],
     [
-      36,
+      37,
       1017,
       1,
-      1024,
+      1025,
       4,
       "LATENT"
     ],
     [
-      37,
-      1024,
-      1,
+      38,
       1025,
+      1,
+      1026,
       0,
       "LATENT"
-    ],
-    [
-      38,
-      1004,
-      0,
-      1025,
-      1,
-      "VAE"
     ],
     [
       39,
-      1024,
-      1,
-      1026,
-      0,
-      "LATENT"
-    ],
-    [
-      40,
-      1005,
+      1004,
       0,
       1026,
       1,
       "VAE"
     ],
     [
-      41,
+      40,
       1025,
-      0,
+      1,
       1027,
       0,
-      "IMAGE"
+      "LATENT"
+    ],
+    [
+      41,
+      1005,
+      0,
+      1027,
+      1,
+      "VAE"
     ],
     [
       42,
       1026,
       0,
+      1028,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
       1027,
+      0,
+      1028,
       1,
       "AUDIO"
     ]

@@ -19,7 +19,10 @@ TEST_PROMPT = "Tom Cruise walks out of the Taj Mahal holding an iPhone 16 Pro, g
 STEPS = 8            # turbo LoRA is a 4-8 step distillation
 WIDTH = 1344         # ~1 megapixel at 16:9 (the model's own trained/default resolution)
 HEIGHT = 768
-LENGTH = 124          # 5 mod 17, ~5s at 24fps
+LENGTH = 124          # 5 mod 17, ~5s at 24fps. (22 frames/F=7 hit a VDN-H3
+                     # shape-mismatch bug in its windowed-attention gate math
+                     # at that degenerate "single dense window" clip length;
+                     # 56 frames/F=17 confirmed fine - well clear of it here.)
 
 graph = {
     # Two alternative providers for P2RExtractEntities/P2RVerifyReferences/
@@ -144,6 +147,11 @@ graph = {
         "class_type": "UNETLoader",
         "inputs": {"unet_name": "MiniMax_H3_Ref2VA_pruned_nvfp4.safetensors", "weight_dtype": "default"},
     },
+    # Community turbo LoRA - the non-VDN path. VDN-H3's own turbo adapter
+    # (below) replaces this; the two must never stack (README: "does not
+    # stack with community MiniMax-H3 turbo LoRAs - do not run both"). Left
+    # in the graph, unwired, as the alternative to swap back to (rewire
+    # scheduler/guider's `model` from ["vdn", 0] to ["lora", 0]).
     "lora": {
         "class_type": "LoraLoaderModelOnly",
         "inputs": {
@@ -152,17 +160,42 @@ graph = {
             "strength_model": 1.0,
         },
     },
+    # VDN-H3 hybrid attention (github.com/Saganaki22/ComfyUI-VDN-H3): windowed
+    # exact softmax for nearby frames + a linear "Video Delta Attention"
+    # branch for distant temporal context, replacing quadratic long-range
+    # attention with constant-cost recurrent state. Applies its own 8-step
+    # turbo distillation (apply_turbo_adapter=True), so it patches the raw
+    # UNET directly, not the community-LoRA'd one.
+    # branch_weights="stream"/retain_buffers="off": the small-card fallbacks
+    # this repo's README recommends for VRAM-limited GPUs (ours is 8GB total,
+    # well under what this was benchmarked on) - streams the ~2.2GB int8
+    # ConvRot branch from disk per block per step instead of holding it
+    # resident, trading speed for peak VRAM headroom.
+    "vdn": {
+        "class_type": "ApplyVDNH3",
+        "inputs": {
+            "model": ["unet", 0],
+            "vdn_checkpoint": "vdn-minimax-h3-int8-convrot-comfyui",
+            "apply_turbo_adapter": True,
+            "strength": 1.0,
+            "lora_mode": "merge",  # required for stage-dmd-* (8-step) checkpoints
+            "branch_weights": "stream",
+            "retain_buffers": "off",
+            "verbose": True,
+            "attention_backend": "grouped",
+        },
+    },
     "noise": {
         "class_type": "RandomNoise",
         "inputs": {"noise_seed": 0},
     },
     "scheduler": {
         "class_type": "BasicScheduler",
-        "inputs": {"model": ["lora", 0], "scheduler": "simple", "steps": STEPS, "denoise": 1.0},
+        "inputs": {"model": ["vdn", 0], "scheduler": "simple", "steps": STEPS, "denoise": 1.0},
     },
     "guider": {
         "class_type": "BasicGuider",
-        "inputs": {"model": ["lora", 0], "conditioning": ["h3", 0]},
+        "inputs": {"model": ["vdn", 0], "conditioning": ["h3", 0]},
     },
     "sampler_select": {
         "class_type": "KSamplerSelect",
