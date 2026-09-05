@@ -91,16 +91,12 @@ def extract_entities(prompt: str, settings, use_llm: bool = True) -> list[Entity
 def _extract_with_claude(prompt: str, settings) -> list[Entity]:
     import anthropic
 
+    from .llm import structured_message
+
     client = anthropic.Anthropic(api_key=settings.api_key)
-    response = client.messages.create(
-        model=settings.model,
-        max_tokens=8000,
-        system=SYSTEM,
-        thinking={"type": "adaptive"},
-        output_config={
-            "effort": settings.effort,
-            "format": {"type": "json_schema", "schema": SCHEMA},
-        },
+    response = structured_message(
+        client, model=settings.model, max_tokens=8000, system=SYSTEM,
+        schema=SCHEMA, effort=settings.effort,
         messages=[{"role": "user", "content": "PROMPT:\n" + prompt}],
     )
     if getattr(response, "stop_reason", None) == "refusal":

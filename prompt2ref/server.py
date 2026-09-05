@@ -37,6 +37,7 @@ NEWLINE = chr(10)
 class ExtractRequest(BaseModel):
     prompt: str = ""
     use_llm: bool = True
+    model: str | None = None
 
 
 class FetchRequest(BaseModel):
@@ -46,6 +47,7 @@ class FetchRequest(BaseModel):
     force: bool = False
     per_shot: int | None = None
     verify: bool = False
+    model: str | None = None
 
 
 class DeleteRequest(BaseModel):
@@ -71,6 +73,7 @@ class ComfyRequest(BaseModel):
     half_res: bool = False
     keep_av: bool = False
     use_llm: bool = True
+    model: str | None = None
 
 
 class RenderRequest(ComfyRequest):
@@ -110,11 +113,32 @@ def create_app(settings=None) -> FastAPI:
             "verify_default": settings.verify,
         }
 
+    @app.get("/api/models")
+    def models():
+        """Anthropic models this API key can use, for the model-picker dropdown."""
+        if not settings.api_key:
+            return {"models": [], "error": "no ANTHROPIC_API_KEY configured"}
+        import anthropic
+
+        try:
+            client = anthropic.Anthropic(api_key=settings.api_key)
+            found = [{"id": m.id, "display_name": m.display_name}
+                     for m in client.models.list(limit=1000)]
+        except Exception as exc:
+            raise HTTPException(502, "failed to list models: %s" % exc)
+        found.sort(key=lambda m: m["display_name"])
+        return {"models": found}
+
+    def _with_model(req) -> object:
+        """Per-request settings so one client's model choice can't leak into another's."""
+        return dataclasses.replace(settings, model=req.model) if req.model else settings
+
     @app.post("/api/extract")
     def extract(req: ExtractRequest):
         if not req.prompt.strip():
             raise HTTPException(400, "prompt is empty")
-        found = pipe.extract(req.prompt, use_llm=req.use_llm)
+        run_pipe = pipe if not req.model else Pipeline(_with_model(req))
+        found = run_pipe.extract(req.prompt, use_llm=req.use_llm)
         return {"entities": [e.to_dict() for e in found]}
 
     @app.post("/api/fetch")
@@ -124,8 +148,8 @@ def create_app(settings=None) -> FastAPI:
             if req.entities is not None
             else None
         )
-        # per-request settings so one client's --verify choice can't leak into another's
-        run_pipe = Pipeline(dataclasses.replace(settings, verify=req.verify))
+        # per-request settings so one client's --verify/model choice can't leak into another's
+        run_pipe = Pipeline(dataclasses.replace(_with_model(req), verify=req.verify))
         events: queue.Queue = queue.Queue()
         SENTINEL = object()
 
@@ -163,8 +187,9 @@ def create_app(settings=None) -> FastAPI:
     def _build(req: ComfyRequest):
         from .comfy import BuildOptions, ScalePolicy, build_workflow, load_manifest
 
+        build_settings = _with_model(req)
         try:
-            manifest = load_manifest(req.manifest, settings)
+            manifest = load_manifest(req.manifest, build_settings)
         except FileNotFoundError as exc:
             raise HTTPException(400, str(exc))
         if req.prompt.strip():
@@ -177,9 +202,9 @@ def create_app(settings=None) -> FastAPI:
             scale_per_tile=req.scale_per_tile,
             seconds=req.seconds, megapixels=req.megapixels, aspect=req.aspect,
             frames=req.frames, half_res=req.half_res, keep_av_refs=req.keep_av,
-            comfy_root=settings.comfy_root, use_llm=req.use_llm,
+            comfy_root=build_settings.comfy_root, use_llm=req.use_llm,
         )
-        result = build_workflow(manifest, settings, opts)
+        result = build_workflow(manifest, build_settings, opts)
         app.state.packed_dir = result.pictures[0].path.parent if result.pictures else None
         return result
 

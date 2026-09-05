@@ -102,20 +102,16 @@ def _picture_brief(pictures: list) -> str:
 def _rewrite(user_prompt: str, pictures: list, seconds: float, settings) -> dict:
     import anthropic
 
+    from ..llm import structured_message
+
     client = anthropic.Anthropic(api_key=settings.api_key)
     user = (
         "USER PROMPT:\n%s\n\nDURATION: %.2f seconds\n\nREFERENCE PICTURES:\n%s"
         % (user_prompt.strip(), seconds, _picture_brief(pictures))
     )
-    response = client.messages.create(
-        model=settings.model,
-        max_tokens=8000,
-        system=SYSTEM,
-        thinking={"type": "adaptive"},
-        output_config={
-            "effort": "medium",
-            "format": {"type": "json_schema", "schema": SCHEMA},
-        },
+    response = structured_message(
+        client, model=settings.model, max_tokens=8000, system=SYSTEM,
+        schema=SCHEMA, effort="medium",
         messages=[{"role": "user", "content": user}],
     )
     if getattr(response, "stop_reason", None) == "refusal":

@@ -133,6 +133,7 @@
         <button id="fetchrefs" disabled>Fetch references</button>
         <span class="grow"></span>
         <label class="chk"><input type="checkbox" id="usellm" checked> use Claude</label>
+        <select id="s_model" title="Claude model"></select>
         <label class="chk"><input type="checkbox" id="verify"> visual QC</label>
         <label class="chk"><input type="checkbox" id="force"> refetch</label>
         <label class="chk"><input type="checkbox" id="reuse" checked> reuse cached refs</label>
@@ -276,8 +277,37 @@ fetch("/api/config").then(r => r.json()).then(c => {
     (c.llm_available ? c.model : "no API key — heuristic NER");
   if (!c.llm_available) {
     $("#usellm").checked = false; $("#usellm").disabled = true; $("#verify").disabled = true;
+    $("#s_model").disabled = true;
   } else if (c.verify_default) { $("#verify").checked = true; }
+  loadModels(c.model);
 });
+
+/* ---------- model picker ---------- */
+async function loadModels(defaultModel) {
+  const sel = $("#s_model");
+  try {
+    const r = await fetch("/api/models");
+    const data = await r.json();
+    sel.textContent = "";
+    (data.models || []).forEach(m => {
+      const o = el("option", null, m.display_name);
+      o.value = m.id;
+      sel.append(o);
+    });
+    if (data.models && data.models.length) {
+      const wanted = new URLSearchParams(location.search).get("model") || defaultModel;
+      sel.value = wanted && data.models.some(m => m.id === wanted) ? wanted : data.models[0].id;
+    } else {
+      sel.disabled = true;
+      const o = el("option", null, data.error || "no models available");
+      sel.append(o);
+    }
+  } catch (e) {
+    sel.disabled = true;
+    sel.textContent = "";
+    sel.append(el("option", null, "failed to load models"));
+  }
+}
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('[role=tab]').forEach(b => b.onclick = () => {
@@ -474,7 +504,7 @@ async function analyze() {
   setStatus("analyzing", "live");
   const r = await fetch("/api/extract", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, use_llm: $("#usellm").checked })
+    body: JSON.stringify({ prompt, use_llm: $("#usellm").checked, model: $("#s_model").value || null })
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.detail || "extract failed");
@@ -499,6 +529,7 @@ async function fetchRefs() {
     prompt: $("#prompt").value.trim(),
     entities, use_llm: $("#usellm").checked,
     force: $("#force").checked, verify: $("#verify").checked,
+    model: $("#s_model").value || null,
   }, ev => {
     logLine(ev);
     if (ev.type === "entities") ev.entities.forEach(e => group(e.slug, e.name, e.type));
@@ -531,6 +562,7 @@ function renderRequest() {
     aspect: $("#s_aspect").value,
     half_res: $("#s_halfres").checked,
     use_llm: $("#usellm").checked,
+    model: $("#s_model").value || null,
     steps: Number($("#s_steps").value),
     seed: Number($("#s_seed").value),
     ref_image_size: $("#s_refimgsize").value,
@@ -699,6 +731,7 @@ $("#prompt").addEventListener("keydown", e => {
   set("s_steps", "steps");
   set("s_seed", "seed");
   set("s_pvframes", "pvframes");
+  set("s_model", "model");
   set("verify", "verify");
   set("force", "force");
   set("s_preview", "preview");

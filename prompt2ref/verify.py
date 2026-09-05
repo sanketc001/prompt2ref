@@ -112,16 +112,12 @@ def _verify_chunk(entity, chunk: list, settings) -> dict[str, tuple[bool, str]]:
             label, entity.type.value, len(usable)),
     })
 
+    from .llm import structured_message
+
     client = anthropic.Anthropic(api_key=settings.api_key)
-    response = client.messages.create(
-        model=settings.model,
-        max_tokens=4000,
-        system=SYSTEM,
-        thinking={"type": "adaptive"},
-        output_config={
-            "effort": "low",
-            "format": {"type": "json_schema", "schema": SCHEMA},
-        },
+    response = structured_message(
+        client, model=settings.model, max_tokens=4000, system=SYSTEM,
+        schema=SCHEMA, effort="low",
         messages=[{"role": "user", "content": content}],
     )
     if getattr(response, "stop_reason", None) == "refusal":
