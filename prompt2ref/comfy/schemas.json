@@ -1,0 +1,1048 @@
+{
+ "ApplyVDNH3": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "vdn_checkpoint",
+    "COMBO",
+    true,
+    "vdn-minimax-h3-int8-convrot-comfyui"
+   ],
+   [
+    "apply_turbo_adapter",
+    "BOOLEAN",
+    true,
+    true
+   ],
+   [
+    "strength",
+    "FLOAT",
+    true,
+    1.0
+   ],
+   [
+    "lora_mode",
+    "COMBO",
+    true,
+    "merge"
+   ],
+   [
+    "branch_weights",
+    "COMBO",
+    true,
+    "auto"
+   ],
+   [
+    "retain_buffers",
+    "COMBO",
+    true,
+    "auto"
+   ],
+   [
+    "verbose",
+    "BOOLEAN",
+    true,
+    false
+   ],
+   [
+    "attention_backend",
+    "COMBO",
+    true,
+    "grouped"
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "MODEL"
+  ]
+ },
+ "BasicGuider": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "conditioning",
+    "CONDITIONING",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "GUIDER"
+  ],
+  "output_names": [
+   "GUIDER"
+  ]
+ },
+ "BasicScheduler": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "scheduler",
+    "COMBO",
+    true,
+    "simple"
+   ],
+   [
+    "steps",
+    "INT",
+    true,
+    20
+   ],
+   [
+    "denoise",
+    "FLOAT",
+    true,
+    1.0
+   ]
+  ],
+  "outputs": [
+   "SIGMAS"
+  ],
+  "output_names": [
+   "SIGMAS"
+  ]
+ },
+ "CFGNorm": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "strength",
+    "FLOAT",
+    true,
+    1.0
+   ],
+   [
+    "pre_cfg",
+    "BOOLEAN",
+    true,
+    false
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "patched_model"
+  ]
+ },
+ "CLIPLoader": {
+  "inputs": [
+   [
+    "clip_name",
+    "COMBO",
+    true,
+    "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors"
+   ],
+   [
+    "type",
+    "COMBO",
+    true,
+    "stable_diffusion"
+   ],
+   [
+    "device",
+    "COMBO",
+    true,
+    "default"
+   ]
+  ],
+  "outputs": [
+   "CLIP"
+  ],
+  "output_names": [
+   "CLIP"
+  ]
+ },
+ "CLIPTextEncode": {
+  "inputs": [
+   [
+    "text",
+    "STRING",
+    true,
+    ""
+   ],
+   [
+    "clip",
+    "CLIP",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "CONDITIONING"
+  ],
+  "output_names": [
+   "CONDITIONING"
+  ]
+ },
+ "CreateVideo": {
+  "inputs": [
+   [
+    "images",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "fps",
+    "FLOAT",
+    true,
+    30.0
+   ],
+   [
+    "audio",
+    "AUDIO",
+    false,
+    ""
+   ],
+   [
+    "bit_depth",
+    "COMBO",
+    true,
+    "auto"
+   ],
+   [
+    "color_space",
+    "COMBO",
+    true,
+    "sRGB"
+   ]
+  ],
+  "outputs": [
+   "VIDEO"
+  ],
+  "output_names": [
+   "VIDEO"
+  ]
+ },
+ "EmptyFlux2LatentImage": {
+  "inputs": [
+   [
+    "width",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "height",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "batch_size",
+    "INT",
+    true,
+    1
+   ]
+  ],
+  "outputs": [
+   "LATENT"
+  ],
+  "output_names": [
+   "LATENT"
+  ]
+ },
+ "EmptySD3LatentImage": {
+  "inputs": [
+   [
+    "width",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "height",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "batch_size",
+    "INT",
+    true,
+    1
+   ]
+  ],
+  "outputs": [
+   "LATENT"
+  ],
+  "output_names": [
+   "LATENT"
+  ]
+ },
+ "Flux2Scheduler": {
+  "inputs": [
+   [
+    "steps",
+    "INT",
+    true,
+    20
+   ],
+   [
+    "width",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "height",
+    "INT",
+    true,
+    1024
+   ]
+  ],
+  "outputs": [
+   "SIGMAS"
+  ],
+  "output_names": [
+   "SIGMAS"
+  ]
+ },
+ "FluxGuidance": {
+  "inputs": [
+   [
+    "conditioning",
+    "CONDITIONING",
+    false,
+    ""
+   ],
+   [
+    "guidance",
+    "FLOAT",
+    true,
+    3.5
+   ]
+  ],
+  "outputs": [
+   "CONDITIONING"
+  ],
+  "output_names": [
+   "CONDITIONING"
+  ]
+ },
+ "ImageScaleToTotalPixels": {
+  "inputs": [
+   [
+    "image",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "upscale_method",
+    "COMBO",
+    true,
+    "nearest-exact"
+   ],
+   [
+    "megapixels",
+    "FLOAT",
+    true,
+    1.0
+   ],
+   [
+    "resolution_steps",
+    "INT",
+    true,
+    1
+   ]
+  ],
+  "outputs": [
+   "IMAGE"
+  ],
+  "output_names": [
+   "IMAGE"
+  ]
+ },
+ "KSampler": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "seed",
+    "INT",
+    true,
+    0
+   ],
+   [
+    "steps",
+    "INT",
+    true,
+    20
+   ],
+   [
+    "cfg",
+    "FLOAT",
+    true,
+    8.0
+   ],
+   [
+    "sampler_name",
+    "COMBO",
+    true,
+    "euler"
+   ],
+   [
+    "scheduler",
+    "COMBO",
+    true,
+    "simple"
+   ],
+   [
+    "positive",
+    "CONDITIONING",
+    false,
+    ""
+   ],
+   [
+    "negative",
+    "CONDITIONING",
+    false,
+    ""
+   ],
+   [
+    "latent_image",
+    "LATENT",
+    false,
+    ""
+   ],
+   [
+    "denoise",
+    "FLOAT",
+    true,
+    1.0
+   ]
+  ],
+  "outputs": [
+   "LATENT"
+  ],
+  "output_names": [
+   "LATENT"
+  ]
+ },
+ "KSamplerSelect": {
+  "inputs": [
+   [
+    "sampler_name",
+    "COMBO",
+    true,
+    "euler"
+   ]
+  ],
+  "outputs": [
+   "SAMPLER"
+  ],
+  "output_names": [
+   "SAMPLER"
+  ]
+ },
+ "LoadImage": {
+  "inputs": [
+   [
+    "image",
+    "COMBO",
+    true,
+    "03.jpg"
+   ]
+  ],
+  "outputs": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_names": [
+   "IMAGE",
+   "MASK"
+  ]
+ },
+ "LoraLoaderModelOnly": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "lora_name",
+    "COMBO",
+    true,
+    "Hands + Feet + skin v1.1.safetensors"
+   ],
+   [
+    "strength_model",
+    "FLOAT",
+    true,
+    1.0
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "MODEL"
+  ]
+ },
+ "MiniMaxH3ReferenceToVideo": {
+  "inputs": [
+   [
+    "clip",
+    "CLIP",
+    false,
+    ""
+   ],
+   [
+    "prompt",
+    "STRING",
+    true,
+    ""
+   ],
+   [
+    "width",
+    "INT",
+    true,
+    1344
+   ],
+   [
+    "height",
+    "INT",
+    true,
+    768
+   ],
+   [
+    "length",
+    "INT",
+    true,
+    124
+   ],
+   [
+    "ref_image_size",
+    "COMBO",
+    true,
+    "match"
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ],
+   [
+    "audio_vae",
+    "VAE",
+    false,
+    ""
+   ],
+   [
+    "ref_images",
+    "COMFY_AUTOGROW_V3",
+    false,
+    ""
+   ],
+   [
+    "ref_videos",
+    "COMFY_AUTOGROW_V3",
+    false,
+    ""
+   ],
+   [
+    "ref_video_audios",
+    "COMFY_AUTOGROW_V3",
+    false,
+    ""
+   ],
+   [
+    "ref_audios",
+    "COMFY_AUTOGROW_V3",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "CONDITIONING",
+   "LATENT"
+  ],
+  "output_names": [
+   "positive",
+   "LATENT"
+  ]
+ },
+ "ModelPreviewOverrideKJ": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "max_resolution",
+    "INT",
+    true,
+    1024
+   ],
+   [
+    "jpeg_quality",
+    "INT",
+    true,
+    80
+   ],
+   [
+    "suppress_default_preview",
+    "BOOLEAN",
+    true,
+    true
+   ],
+   [
+    "preview_frames",
+    "INT",
+    true,
+    1
+   ],
+   [
+    "preview_fps",
+    "INT",
+    true,
+    12
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ],
+   [
+    "tiny_vae",
+    "COMBO",
+    true,
+    "none"
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "MODEL"
+  ]
+ },
+ "ModelSamplingAuraFlow": {
+  "inputs": [
+   [
+    "model",
+    "MODEL",
+    false,
+    ""
+   ],
+   [
+    "shift",
+    "FLOAT",
+    true,
+    1.73
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "MODEL"
+  ]
+ },
+ "PreviewImage": {
+  "inputs": [
+   [
+    "images",
+    "IMAGE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "IMAGE"
+  ],
+  "output_names": [
+   "images"
+  ]
+ },
+ "RandomNoise": {
+  "inputs": [
+   [
+    "noise_seed",
+    "INT",
+    true,
+    0
+   ]
+  ],
+  "outputs": [
+   "NOISE"
+  ],
+  "output_names": [
+   "NOISE"
+  ]
+ },
+ "ReferenceLatent": {
+  "inputs": [
+   [
+    "conditioning",
+    "CONDITIONING",
+    false,
+    ""
+   ],
+   [
+    "latent",
+    "LATENT",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "CONDITIONING"
+  ],
+  "output_names": [
+   "CONDITIONING"
+  ]
+ },
+ "SamplerCustomAdvanced": {
+  "inputs": [
+   [
+    "noise",
+    "NOISE",
+    false,
+    ""
+   ],
+   [
+    "guider",
+    "GUIDER",
+    false,
+    ""
+   ],
+   [
+    "sampler",
+    "SAMPLER",
+    false,
+    ""
+   ],
+   [
+    "sigmas",
+    "SIGMAS",
+    false,
+    ""
+   ],
+   [
+    "latent_image",
+    "LATENT",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "LATENT",
+   "LATENT"
+  ],
+  "output_names": [
+   "output",
+   "denoised_output"
+  ]
+ },
+ "SaveImage": {
+  "inputs": [
+   [
+    "images",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "filename_prefix",
+    "STRING",
+    true,
+    "ComfyUI"
+   ]
+  ],
+  "outputs": [
+   "IMAGE"
+  ],
+  "output_names": [
+   "images"
+  ]
+ },
+ "SaveVideo": {
+  "inputs": [
+   [
+    "video",
+    "VIDEO",
+    false,
+    ""
+   ],
+   [
+    "filename_prefix",
+    "STRING",
+    true,
+    "video/ComfyUI"
+   ],
+   [
+    "format",
+    "COMFY_DYNAMICCOMBO_V3",
+    false,
+    ""
+   ],
+   [
+    "codec",
+    "COMFY_DYNAMICCOMBO_V3",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "VIDEO"
+  ],
+  "output_names": [
+   "video"
+  ]
+ },
+ "TextEncodeQwenImageEditPlus": {
+  "inputs": [
+   [
+    "clip",
+    "CLIP",
+    false,
+    ""
+   ],
+   [
+    "prompt",
+    "STRING",
+    true,
+    ""
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ],
+   [
+    "image1",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "image2",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "image3",
+    "IMAGE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "CONDITIONING"
+  ],
+  "output_names": [
+   "CONDITIONING"
+  ]
+ },
+ "UNETLoader": {
+  "inputs": [
+   [
+    "unet_name",
+    "COMBO",
+    true,
+    "MelBandRoformer_fp16.safetensors"
+   ],
+   [
+    "weight_dtype",
+    "COMBO",
+    true,
+    "default"
+   ]
+  ],
+  "outputs": [
+   "MODEL"
+  ],
+  "output_names": [
+   "MODEL"
+  ]
+ },
+ "VAEDecode": {
+  "inputs": [
+   [
+    "samples",
+    "LATENT",
+    false,
+    ""
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "IMAGE"
+  ],
+  "output_names": [
+   "IMAGE"
+  ]
+ },
+ "VAEDecodeAudio": {
+  "inputs": [
+   [
+    "samples",
+    "LATENT",
+    false,
+    ""
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "AUDIO"
+  ],
+  "output_names": [
+   "AUDIO"
+  ]
+ },
+ "VAEEncode": {
+  "inputs": [
+   [
+    "pixels",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "LATENT"
+  ],
+  "output_names": [
+   "LATENT"
+  ]
+ },
+ "VAELoader": {
+  "inputs": [
+   [
+    "vae_name",
+    "COMBO",
+    true,
+    "LTX23_audio_vae_bf16.safetensors"
+   ]
+  ],
+  "outputs": [
+   "VAE"
+  ],
+  "output_names": [
+   "VAE"
+  ]
+ },
+ "VHS_VideoCombine": {
+  "inputs": [
+   [
+    "images",
+    "IMAGE",
+    false,
+    ""
+   ],
+   [
+    "frame_rate",
+    "FLOAT",
+    true,
+    8
+   ],
+   [
+    "loop_count",
+    "INT",
+    true,
+    0
+   ],
+   [
+    "filename_prefix",
+    "STRING",
+    true,
+    "AnimateDiff"
+   ],
+   [
+    "format",
+    "COMBO",
+    true,
+    "image/gif"
+   ],
+   [
+    "pingpong",
+    "BOOLEAN",
+    true,
+    false
+   ],
+   [
+    "save_output",
+    "BOOLEAN",
+    true,
+    true
+   ],
+   [
+    "audio",
+    "AUDIO",
+    false,
+    ""
+   ],
+   [
+    "meta_batch",
+    "VHS_BatchManager",
+    false,
+    ""
+   ],
+   [
+    "vae",
+    "VAE",
+    false,
+    ""
+   ]
+  ],
+  "outputs": [
+   "VHS_FILENAMES"
+  ],
+  "output_names": [
+   "Filenames"
+  ]
+ }
+}

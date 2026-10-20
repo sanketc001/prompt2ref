@@ -298,6 +298,25 @@ def render(
 
 # --- streaming render (live preview) ---------------------------------------
 
+#  4-byte event id, 4-byte image format, then the encoded bytes.
+BINARY_PREVIEW_EVENT = 1
+BINARY_IMAGE_MIME = {1: "image/jpeg", 2: "image/png"}
+
+
+def _binary_preview(raw: bytes) -> dict | None:
+    """Decode ComfyUI's own binary websocket preview frame."""
+    import base64
+    import struct
+
+    if len(raw) < 8:
+        return None
+    event, fmt = struct.unpack(">II", raw[:8])
+    if event != BINARY_PREVIEW_EVENT or fmt not in BINARY_IMAGE_MIME:
+        return None
+    return {"image": base64.standard_b64encode(raw[8:]).decode(),
+            "mime": BINARY_IMAGE_MIME[fmt]}
+
+
 def _ws_url(server: str, client_id: str) -> str:
     base = server.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
     return "%s/ws?clientId=%s" % (base, client_id)
@@ -314,7 +333,37 @@ def stream_render(
     on_event=None,
     comfy_root: Path | None = None,
 ) -> RunResult:
-    """Submit and relay ComfyUI's websocket events as they arrive.
+    """Build the MiniMax H3 API graph from a build result and stream it."""
+    if server_alive(server) is None:
+        raise ComfyError("no ComfyUI at %s - start it first" % server)
+    models = resolve_models(server)
+    preview = preview or PreviewOptions()
+    if preview.enabled and not PreviewOptions.available(server):
+        preview.enabled = False
+        if on_event:
+            on_event({"type": "warning",
+                      "message": "ModelPreviewOverrideKJ not installed - no live preview"})
+
+    graph = build_api_graph(
+        build_result.pictures, build_result.prompt,
+        build_result.width, build_result.height, build_result.frames,
+        models, seed=seed, steps=steps, ref_image_size=ref_image_size,
+        fps=float(build_result.fps), preview=preview,
+    )
+    return stream_graph(graph, server=server, steps=steps, preview=preview.enabled,
+                        timeout_s=timeout_s, on_event=on_event, comfy_root=comfy_root)
+
+
+def stream_graph(
+    graph: dict,
+    server: str = DEFAULT_SERVER,
+    steps: int = 20,
+    preview: bool = False,
+    timeout_s: float = 7200,
+    on_event=None,
+    comfy_root: Path | None = None,
+) -> RunResult:
+    """Submit any API graph and relay ComfyUI's websocket events as they arrive.
 
     Emitted event types: `submitted`, `progress`, `preview`, `node`, `error`,
     `done`. The socket is opened *before* submitting so the first sampler step
@@ -331,19 +380,6 @@ def stream_render(
 
     if server_alive(server) is None:
         raise ComfyError("no ComfyUI at %s - start it first" % server)
-    models = resolve_models(server)
-    preview = preview or PreviewOptions()
-    if preview.enabled and not PreviewOptions.available(server):
-        preview.enabled = False
-        emit({"type": "warning",
-              "message": "ModelPreviewOverrideKJ not installed - no live preview"})
-
-    graph = build_api_graph(
-        build_result.pictures, build_result.prompt,
-        build_result.width, build_result.height, build_result.frames,
-        models, seed=seed, steps=steps, ref_image_size=ref_image_size,
-        fps=float(build_result.fps), preview=preview,
-    )
 
     client_id = uuid.uuid4().hex
     started = time.time()
@@ -352,7 +388,7 @@ def stream_render(
                  open_timeout=15) as ws:
         prompt_id = submit(graph, server, client_id=client_id)
         emit({"type": "submitted", "prompt_id": prompt_id,
-              "steps": steps, "preview": preview.enabled})
+              "steps": steps, "preview": preview})
 
         while True:
             elapsed = time.time() - started
@@ -365,7 +401,12 @@ def stream_render(
                 emit({"type": "waiting", "elapsed": round(elapsed, 1)})
                 continue
             if isinstance(raw, (bytes, bytearray)):
-                continue  # binary previews are suppressed by the KJ override
+                # The KJ override suppresses these on the video path; the image
+                # backends have no override, so this is their live preview.
+                shot = _binary_preview(raw)
+                if shot:
+                    emit({"type": "preview", "elapsed": round(elapsed, 1), **shot})
+                continue
             try:
                 msg = json.loads(raw)
             except (ValueError, TypeError):

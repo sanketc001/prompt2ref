@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prompt2Ref — MiniMax H3</title>
+<title>Prompt2Ref — video · image · edit</title>
 <style>
   :root{
     --bg:#0d0f13; --panel:#151920; --panel-2:#1c2129; --line:#262d38;
@@ -108,11 +108,30 @@
   ::backdrop{background:rgba(0,0,0,.75)}
   pre.prompt{white-space:pre-wrap;background:#0a0c10;border:1px solid var(--line);
     border-radius:8px;padding:12px;font-size:11.5px;max-height:280px;overflow:auto;margin:10px 0 0}
+
+  /* mode: which controls belong to video / image / edit */
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .seg button{border:none;border-radius:0;padding:6px 16px;background:none}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg button[aria-pressed=true]{background:var(--panel-2);color:#fff;
+    box-shadow:inset 0 -2px 0 var(--accent)}
+  /* !important because these land on label.f / .row, which set display themselves */
+  .only-video,.only-image,.only-edit{display:none!important}
+  body.mode-video .only-video,
+  body.mode-image .only-image,
+  body.mode-edit  .only-edit,
+  body.mode-edit  .only-image{display:flex!important}   /* image controls serve both */
+  .src{display:flex;gap:10px;align-items:center}
+  .src img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--line);
+    background:#0a0c10}
+  .outgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;
+    padding:10px 0}
+  .outgrid img{width:100%;border-radius:8px;border:1px solid var(--line);cursor:pointer;display:block}
 </style>
 </head>
 <body>
 <header>
-  <h1><span>Prompt2Ref</span> → MiniMax H3</h1>
+  <h1><span>Prompt2Ref</span> → <span id="target">MiniMax H3</span></h1>
   <div class="meta" id="cfg">loading…</div>
 </header>
 
@@ -123,6 +142,33 @@
   </div>
 
   <section id="tab-make">
+
+    <div class="card">
+      <h2><span class="n">0</span> What are you making</h2>
+      <div class="row">
+        <div class="seg" id="modeseg">
+          <button data-mode="video" aria-pressed="true">Video</button>
+          <button data-mode="image" aria-pressed="false">Image</button>
+          <button data-mode="edit" aria-pressed="false">Edit an image</button>
+        </div>
+        <span class="muted" id="modehint">MiniMax H3 Ref2VA — references drive a short clip</span>
+      </div>
+      <div class="row only-image" style="margin-top:12px">
+        <label class="f grow">image model
+          <select id="s_backend"></select>
+        </label>
+        <span class="muted" id="backendnote"></span>
+      </div>
+      <div class="row only-edit" style="margin-top:12px">
+        <div class="src">
+          <img id="srcthumb" alt="" hidden>
+          <label class="f">image to edit
+            <input type="file" id="s_editfile" accept="image/*">
+          </label>
+        </div>
+        <span class="muted" id="srcname">no image chosen — pick the frame you want changed</span>
+      </div>
+    </div>
 
     <div class="card">
       <h2><span class="n">1</span> Prompt <span class="hint">— name the entities you want references for</span></h2>
@@ -163,14 +209,23 @@
             <option value="21:9">21:9 scope</option>
           </select>
         </label>
-        <label class="f">video megapixels
-          <input type="number" id="s_mp" value="0.4" step="0.05" min="0.1" max="2">
+        <label class="f"><span id="mplabel">video megapixels</span>
+          <input type="number" id="s_mp" value="0.4" step="0.05" min="0.1" max="4">
         </label>
-        <label class="f">length (seconds)
+        <label class="f only-video">length (seconds)
           <input type="number" id="s_seconds" value="1" step="0.5" min="0.2" max="15">
         </label>
-        <label class="f">frames (override)
+        <label class="f only-video">frames (override)
           <input type="number" id="s_frames" placeholder="auto" step="17" min="5">
+        </label>
+        <label class="f only-image">images per run
+          <input type="number" id="s_batch" value="1" min="1" max="8">
+        </label>
+        <label class="f only-image">guidance (cfg)
+          <input type="number" id="s_cfg" placeholder="backend default" step="0.1" min="0" max="15">
+        </label>
+        <label class="f only-edit">edit strength (denoise)
+          <input type="number" id="s_denoise" value="1" step="0.05" min="0.1" max="1">
         </label>
         <label class="f">reference packing
           <select id="s_pack">
@@ -188,7 +243,7 @@
             <option value="native">native</option>
           </select>
         </label>
-        <label class="f">reference detail
+        <label class="f only-video">reference detail
           <select id="s_refimgsize">
             <option value="match">match — scale refs to output area</option>
             <option value="max">max — 2048px short edge (slower)</option>
@@ -201,14 +256,23 @@
           <input type="number" id="s_seed" value="0" min="0">
         </label>
       </div>
+      <div class="row only-image" style="margin-top:10px">
+        <label class="f grow">style clause <span class="muted">— appended to the written prompt</span>
+          <input type="text" id="s_style" placeholder="35mm film still, shallow depth of field">
+        </label>
+        <label class="f grow">negative prompt
+          <input type="text" id="s_negative" placeholder="auto">
+        </label>
+        <label class="chk"><input type="checkbox" id="s_turbo" checked> turbo LoRA</label>
+      </div>
       <div class="row" style="margin-top:12px">
         <div class="readout grow" id="readout">—</div>
-        <label class="chk"><input type="checkbox" id="s_preview" checked> live preview</label>
-        <label class="f" style="width:104px">preview frames
+        <label class="chk only-video"><input type="checkbox" id="s_preview" checked> live preview</label>
+        <label class="f only-video" style="width:104px">preview frames
           <input type="number" id="s_pvframes" value="4" min="1" max="24">
         </label>
         <label class="chk"><input type="checkbox" id="s_labels"> sheet labels</label>
-        <label class="chk"><input type="checkbox" id="s_halfres"> half-res downscale</label>
+        <label class="chk only-video"><input type="checkbox" id="s_halfres"> half-res downscale</label>
       </div>
     </div>
 
@@ -219,16 +283,17 @@
         <button class="tiny danger" id="cancel" hidden>cancel render</button>
       </h2>
       <div class="stage" id="stage">
-        <div class="idle">The sampling preview appears here while the model runs,<br>then the finished clip replaces it.</div>
+        <div class="idle">The sampling preview appears here while the model runs,<br>then the finished result replaces it.</div>
       </div>
+      <div class="outgrid" id="outgrid" hidden></div>
       <div class="bar"><i id="progbar"></i></div>
       <div class="stat" id="stat"></div>
       <div class="row" style="margin-top:10px">
         <code class="path" id="outpath"></code>
         <span class="grow"></span>
         <a id="download" hidden download><button class="tiny">download</button></a>
-        <button class="tiny ghost" id="showprompt" hidden>show H3 prompt</button>
-        <button class="tiny ghost" id="showslots" hidden>show picture slots</button>
+        <button class="tiny ghost" id="showprompt" hidden>show the written prompt</button>
+        <button class="tiny ghost" id="showslots" hidden>show reference slots</button>
       </div>
       <pre class="prompt" id="h3prompt" hidden></pre>
       <div class="thumbs" id="slots" hidden style="padding:12px 0"></div>
@@ -271,6 +336,79 @@ let entities = [];
 let groups = {};
 let busy = false;
 
+/* ---------- mode: video | image | edit ---------- */
+let mode = "video";
+let backends = [];          // from /api/image/backends
+let editImage = null;       // name under ComfyUI/input, from /api/image/source
+
+const MODE_INFO = {
+  video: { target: "MiniMax H3", button: "Generate video",
+           hint: "MiniMax H3 Ref2VA — references drive a short clip",
+           mp: "video megapixels", defaults: { mp: 0.4, aspect: "16:9", pack: "per-entity" } },
+  image: { target: "image", button: "Generate image",
+           hint: "references condition a still — identity, product, place",
+           mp: "image megapixels", defaults: { mp: 1.0, aspect: "1:1", pack: "primary" } },
+  edit:  { target: "image edit", button: "Apply edit",
+           hint: "your frame is the first conditioning image; the references say what goes in it",
+           mp: "image megapixels", defaults: { mp: 1.0, aspect: "1:1", pack: "primary" } },
+};
+
+function backend() { return backends.find(b => b.key === $("#s_backend").value) || null; }
+
+function setMode(next, keepValues) {
+  mode = next;
+  document.body.className = "mode-" + next;
+  document.querySelectorAll("#modeseg button").forEach(
+    b => b.setAttribute("aria-pressed", String(b.dataset.mode === next)));
+  const info = MODE_INFO[next];
+  $("#target").textContent = info.target;
+  $("#generate").textContent = info.button;
+  $("#modehint").textContent = info.hint;
+  $("#mplabel").textContent = info.mp;
+  if (!keepValues) {
+    $("#s_mp").value = info.defaults.mp;
+    $("#s_aspect").value = info.defaults.aspect;
+    $("#s_pack").value = info.defaults.pack;
+  }
+  updateReadout();
+}
+
+document.querySelectorAll("#modeseg button").forEach(
+  b => b.onclick = () => setMode(b.dataset.mode));
+
+/* ---------- image backends ---------- */
+async function loadBackends(wanted) {
+  const sel = $("#s_backend");
+  try {
+    const data = await (await fetch("/api/image/backends")).json();
+    backends = data.backends || [];
+    sel.textContent = "";
+    backends.forEach(b => {
+      const o = el("option", null, b.label + (b.installed ? "" : "  (model not found)"));
+      o.value = b.key;
+      sel.append(o);
+    });
+    sel.value = (wanted && backends.some(b => b.key === wanted)) ? wanted : data.default;
+  } catch (e) {
+    sel.disabled = true;
+    sel.append(el("option", null, "failed to load backends"));
+  }
+  onBackendChange();
+}
+
+function onBackendChange() {
+  const b = backend();
+  if (!b) return;
+  $("#backendnote").textContent =
+    `${b.ref_slots} reference slot${b.ref_slots === 1 ? "" : "s"} · ` +
+    `${b.supports_edit ? "can edit" : "generate only"} · ${b.notes}`;
+  $("#s_turbo").disabled = !b.has_turbo;
+  if (!$("#s_steps").dataset.touched)
+    $("#s_steps").value = (b.has_turbo && $("#s_turbo").checked) ? b.turbo_steps : b.steps;
+  updateReadout();
+}
+
+
 /* ---------- config ---------- */
 fetch("/api/config").then(r => r.json()).then(c => {
   $("#cfg").textContent = `${c.refs_dir}  ·  ${c.sources.join(", ")}  ·  ` +
@@ -280,6 +418,35 @@ fetch("/api/config").then(r => r.json()).then(c => {
     $("#s_model").disabled = true;
   } else if (c.verify_default) { $("#verify").checked = true; }
   loadModels(c.model);
+});
+
+loadBackends(new URLSearchParams(location.search).get("backend"));
+
+/* ---------- the frame being edited ---------- */
+$("#s_editfile").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const dataUrl = await new Promise((ok, bad) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result); r.onerror = bad;
+    r.readAsDataURL(file);
+  });
+  $("#srcthumb").src = dataUrl; $("#srcthumb").hidden = false;
+  $("#srcname").textContent = "uploading…";
+  try {
+    const res = await fetch("/api/image/source", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: file.name, data_url: dataUrl })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "upload failed");
+    editImage = data.name;
+    $("#srcname").textContent = data.path;
+  } catch (err) {
+    editImage = null;
+    $("#srcname").textContent = "could not stage the image — " + err.message;
+  }
+  updateReadout();
 });
 
 /* ---------- model picker ---------- */
@@ -334,20 +501,49 @@ function framesFor(seconds, fps = 24) {
 }
 
 function updateReadout() {
-  const [w, h] = solveRes(Number($("#s_mp").value), $("#s_aspect").value);
-  const override = Number($("#s_frames").value);
-  const f = override || framesFor(Number($("#s_seconds").value));
-  const secs = (f / 24).toFixed(2);
+  // Images quantise to 16, the H3 template to 32 — same maths, different grid.
+  const mult = mode === "video" ? 32 : 16;
+  const [w, h] = solveRes(Number($("#s_mp").value), $("#s_aspect").value, mult);
   const mp = (w * h / 1e6).toFixed(2);
-  let txt = `${w}×${h}  (${mp} MP)   ·   ${f} frames  ≈ ${secs}s @ 24fps`;
-  if (!override && Math.abs(f / 24 - Number($("#s_seconds").value)) > 0.05)
-    txt += `   ·   quantised from ${$("#s_seconds").value}s (17k+5 rule)`;
-  if (override && (override - 5) % 17 !== 0) txt += "   ·   ⚠ not 5 mod 17";
+  let txt = `${w}×${h}  (${mp} MP)`;
+
+  if (mode === "video") {
+    const override = Number($("#s_frames").value);
+    const f = override || framesFor(Number($("#s_seconds").value));
+    txt += `   ·   ${f} frames  ≈ ${(f / 24).toFixed(2)}s @ 24fps`;
+    if (!override && Math.abs(f / 24 - Number($("#s_seconds").value)) > 0.05)
+      txt += `   ·   quantised from ${$("#s_seconds").value}s (17k+5 rule)`;
+    if (override && (override - 5) % 17 !== 0) txt += "   ·   ⚠ not 5 mod 17";
+  } else {
+    const b = backend();
+    const batch = Number($("#s_batch").value) || 1;
+    const cfg = $("#s_cfg").value || (b ? (turboOn(b) ? b.turbo_cfg : b.cfg) : "");
+    txt += `   ·   ${$("#s_steps").value} steps  ·  cfg ${cfg}`;
+    if (batch > 1) txt += `   ·   ×${batch}`;
+    if (b) txt += `   ·   ${b.key}${turboOn(b) ? " + turbo" : ""}`;
+    if (mode === "edit") {
+      txt += `   ·   denoise ${$("#s_denoise").value}`;
+      if (!editImage) txt += "   ·   ⚠ no image chosen";
+      else txt += "   ·   output follows the source size";
+    }
+    if (b && b.ref_slots === 0) txt += "   ·   ⚠ references shape the prompt only";
+  }
   $("#readout").textContent = txt;
 }
-["s_mp","s_aspect","s_seconds","s_frames"].forEach(id =>
+
+function turboOn(b) { return !!(b && b.has_turbo && $("#s_turbo").checked); }
+
+["s_mp","s_aspect","s_seconds","s_frames","s_batch","s_cfg","s_denoise"].forEach(id =>
   $("#" + id).addEventListener("input", updateReadout));
-updateReadout();
+$("#s_steps").addEventListener("input", () => {
+  $("#s_steps").dataset.touched = "1";   // stop the backend default overwriting it
+  updateReadout();
+});
+$("#s_backend").addEventListener("change", onBackendChange);
+$("#s_turbo").addEventListener("change", () => {
+  delete $("#s_steps").dataset.touched;
+  onBackendChange();
+});
 
 /* ---------- entity editor ---------- */
 function renderEntities() {
@@ -421,7 +617,8 @@ function logLine(ev) {
     error: () => `XX ${ev.error}`,
     warning: () => `!  ${ev.message}`,
     done: () => `== ${ev.total_images != null ? ev.total_images + " images" : "render finished in " + ev.elapsed + "s"}`,
-    build: () => `built ${ev.build.pictures.length} picture slot(s) — ${ev.build.width}×${ev.build.height}, ${ev.build.frames} frames`,
+    build: () => `built ${ev.build.pictures.length} reference slot(s) — ${ev.build.width}×${ev.build.height}` +
+      (ev.build.frames ? `, ${ev.build.frames} frames` : ` via ${ev.build.backend}`),
     submitted: () => `submitted ${ev.prompt_id.slice(0, 8)} — ${ev.steps} steps, preview ${ev.preview ? "on" : "off"}`,
     node: () => `node ${ev.node ?? "(finished)"}`,
     result: () => `rendered in ${ev.elapsed}s`,
@@ -547,24 +744,43 @@ $("#fetchrefs").onclick = async () => {
 };
 
 /* ---------- step 3/4: build + render ---------- */
-function renderRequest() {
+function commonRequest() {
   const refmode = $("#s_refmode").value;
-  const frames = Number($("#s_frames").value) || null;
   return {
     prompt: $("#prompt").value.trim(),
     pack: $("#s_pack").value,
     ref_native: refmode === "native",
     ref_max: refmode === "native" ? null : Number(refmode),
     labels: $("#s_labels").checked ? true : null,
-    seconds: Number($("#s_seconds").value),
-    frames,
     megapixels: Number($("#s_mp").value),
     aspect: $("#s_aspect").value,
-    half_res: $("#s_halfres").checked,
     use_llm: $("#usellm").checked,
     model: $("#s_model").value || null,
     steps: Number($("#s_steps").value),
     seed: Number($("#s_seed").value),
+  };
+}
+
+function renderRequest() {
+  if (mode !== "video") {
+    return {
+      ...commonRequest(),
+      backend: $("#s_backend").value,
+      mode: mode === "edit" ? "edit" : "generate",
+      edit_image: mode === "edit" ? editImage : null,
+      batch: Number($("#s_batch").value) || 1,
+      cfg: $("#s_cfg").value === "" ? null : Number($("#s_cfg").value),
+      denoise: mode === "edit" ? Number($("#s_denoise").value) : 1,
+      turbo: $("#s_turbo").checked,
+      style: $("#s_style").value.trim(),
+      negative: $("#s_negative").value.trim() || null,
+    };
+  }
+  return {
+    ...commonRequest(),
+    seconds: Number($("#s_seconds").value),
+    frames: Number($("#s_frames").value) || null,
+    half_res: $("#s_halfres").checked,
     ref_image_size: $("#s_refimgsize").value,
     live_preview: $("#s_preview").checked,
     preview_frames: Number($("#s_pvframes").value),
@@ -609,30 +825,41 @@ function setStat(parts) {
   });
 }
 
+function buildStats(build) {
+  return [
+    ["size", `${build.width}×${build.height}`],
+    build.frames ? ["frames", build.frames] : null,
+    build.backend ? ["backend", build.backend] : null,
+    ["refs", build.pictures.length],
+  ];
+}
+
 async function render() {
   setStatus("building", "live");
   $("#progbar").style.width = "0%";
   $("#h3prompt").hidden = true; $("#slots").hidden = true;
+  $("#outgrid").hidden = true; $("#outgrid").textContent = "";
   $("#download").hidden = true; $("#outpath").textContent = "";
   $("#cancel").hidden = false;
   showStage(el("div", "idle", "waiting for the first sampler step…"));
 
+  const isVideo = mode === "video";
   let build = null, lastStep = 0, totalSteps = Number($("#s_steps").value);
 
-  await streamNDJSON("/api/render", renderRequest(), ev => {
+  await streamNDJSON(isVideo ? "/api/render" : "/api/image/render", renderRequest(), ev => {
     logLine(ev);
     if (ev.type === "build") {
       build = ev.build;
       $("#h3prompt").textContent = build.prompt +
+        (build.negative ? NL + NL + "--- negative ---" + NL + build.negative : "") +
         (build.warnings.length ? NL + NL + "--- warnings ---" + NL + build.warnings.join(NL) : "");
       $("#showprompt").hidden = false;
-      $("#showslots").hidden = false;
+      $("#showslots").hidden = build.pictures.length === 0;
       const slots = $("#slots"); slots.textContent = "";
       build.pictures.forEach(p => addThumb(slots, "", p,
         `/api/comfy/preview/${encodeURIComponent(p.file)}?t=${Date.now()}`));
       setStatus("loading models", "live");
-      setStat([["size", `${build.width}×${build.height}`], ["frames", build.frames],
-               ["slots", build.pictures.length]]);
+      setStat(buildStats(build));
     } else if (ev.type === "submitted") {
       totalSteps = ev.steps;
       setStatus(ev.preview ? "sampling (live)" : "sampling", "live");
@@ -646,8 +873,7 @@ async function render() {
         ["step", `${lastStep}/${total}`],
         ev.avg_step_ms ? ["s/step", (ev.avg_step_ms / 1000).toFixed(1)] : null,
         ["elapsed", `${Math.round(ev.elapsed)}s`],
-        build ? ["size", `${build.width}×${build.height}`] : null,
-        build ? ["frames", build.frames] : null,
+        ...(build ? buildStats(build) : []),
       ]);
     } else if (ev.type === "progress" && ev.max) {
       $("#progbar").style.width = Math.min(100, 100 * ev.value / ev.max) + "%";
@@ -657,30 +883,54 @@ async function render() {
       throw new Error(ev.error);
     } else if (ev.type === "result") {
       $("#progbar").style.width = "100%";
-      const out = ev.outputs[0];
-      if (out) {
-        const v = el("video");
-        v.controls = true; v.autoplay = true; v.loop = true; v.playsInline = true;
-        v.src = out.url;
-        showStage(v);
-        $("#outpath").textContent = out.path;
-        const a = $("#download");
-        a.href = out.url; a.download = out.name; a.hidden = false;
-      }
+      showResult(ev.outputs, isVideo);
       setStatus(`done in ${Math.round(ev.elapsed)}s`, "ok");
       setStat([["render", `${Math.round(ev.elapsed)}s`],
-               build ? ["size", `${build.width}×${build.height}`] : null,
-               build ? ["frames", build.frames] : null,
+               ...(build ? buildStats(build) : []),
                ["files", ev.outputs.length]]);
     }
   });
   $("#cancel").hidden = true;
 }
 
+function showResult(outputs, isVideo) {
+  const out = outputs[0];
+  if (!out) return;
+  if (isVideo) {
+    const v = el("video");
+    v.controls = true; v.autoplay = true; v.loop = true; v.playsInline = true;
+    v.src = out.url;
+    showStage(v);
+  } else {
+    const im = el("img");
+    im.src = out.url; im.alt = out.name;
+    im.onclick = () => { $("#lbimg").src = out.url; $("#lbcap").textContent = out.path;
+                         $("#lightbox").showModal(); };
+    showStage(im);
+  }
+  $("#outpath").textContent = out.path;
+  const a = $("#download");
+  a.href = out.url; a.download = out.name; a.hidden = false;
+
+  // A batch renders several files; the first fills the stage, the rest sit under it.
+  const grid = $("#outgrid");
+  grid.textContent = "";
+  grid.hidden = outputs.length < 2;
+  if (outputs.length < 2) return;
+  outputs.forEach(o => {
+    const t = el("img");
+    t.src = o.url; t.alt = o.name; t.loading = "lazy";
+    t.onclick = () => { $("#lbimg").src = o.url; $("#lbcap").textContent = o.path;
+                        $("#lightbox").showModal(); };
+    grid.append(t);
+  });
+}
+
 $("#generate").onclick = async () => {
   setBusy(true);
   try {
     if (!$("#prompt").value.trim()) { alert("write a prompt first"); return; }
+    if (mode === "edit" && !editImage) { alert("choose the image you want to edit first"); return; }
     if (!entities.length) await analyze();
     if (!$("#reuse").checked || !Object.keys(groups).length) await fetchRefs();
     await render();
@@ -706,12 +956,13 @@ $("#prompt").addEventListener("keydown", e => {
 });
 
 /* ---------- URL prefill ----------
-   /?prompt=...&seconds=10&aspect=16:9&mp=0.4&pack=per-entity&ref=1024
-     &steps=20&seed=0&refdetail=match&verify=1&run=1
+   /?mode=image&backend=qwen-image-edit&prompt=...&aspect=16:9&mp=1&pack=primary
+     &ref=1024&steps=4&seed=0&style=...&batch=2&verify=1&run=1
    `run=1` starts the full chain on load, so a link can hand someone a finished
    set of settings and let them just watch it render. */
 (function prefill() {
   const q = new URLSearchParams(location.search);
+  setMode(MODE_INFO[q.get("mode")] ? q.get("mode") : "video");
   if (!q.toString()) return;
   const set = (id, key, transform) => {
     if (!q.has(key)) return;
@@ -736,6 +987,13 @@ $("#prompt").addEventListener("keydown", e => {
   set("force", "force");
   set("s_preview", "preview");
   set("s_labels", "labels");
+  set("s_batch", "batch");
+  set("s_cfg", "cfg");
+  set("s_denoise", "denoise");
+  set("s_style", "style");
+  set("s_negative", "negative");
+  set("s_turbo", "turbo");
+  if (q.has("steps")) $("#s_steps").dataset.touched = "1";
   updateReadout();
   if (q.get("run") === "1") {
     // let /api/config land first so the Claude toggles settle

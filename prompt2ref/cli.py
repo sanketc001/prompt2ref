@@ -13,10 +13,21 @@ import logging
 import sys
 from pathlib import Path
 
-from .comfy import PACK_MODES
+from .comfy.imagegraph import BACKENDS, DEFAULT_BACKEND
+from .comfy.imagepack import PACK_MODES
 from .config import load_settings
 from .entities import Entity
 from .pipeline import Pipeline
+
+MODES = ("video", "image", "edit")
+
+# Per-mode defaults for the settings both paths share. Video keeps the numbers
+# it has always had; image work wants a bigger frame and an untiled reference.
+MODE_DEFAULTS = {
+    "video": {"megapixels": 0.4, "aspect": "16:9", "pack": "per-entity", "steps": 20},
+    "image": {"megapixels": 1.0, "aspect": "1:1", "pack": "primary", "steps": None},
+    "edit": {"megapixels": 1.0, "aspect": "1:1", "pack": "primary", "steps": None},
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,14 +57,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8077)
 
-    c = p.add_argument_group("ComfyUI - MiniMax H3 Ref2VA workflow")
+    c = p.add_argument_group("ComfyUI - workflow building")
+    c.add_argument("--mode", default="video", choices=list(MODES),
+                   help="what to build: a MiniMax H3 video, a reference-conditioned "
+                        "image, or an edit of an existing image (default video)")
     c.add_argument("--comfy", action="store_true",
-                   help="after fetching, build a MiniMax H3 Ref2VA workflow")
+                   help="after fetching, build the workflow for --mode")
     c.add_argument("--comfy-only", action="store_true",
                    help="build the workflow from an existing manifest, fetch nothing")
     c.add_argument("--manifest", help="manifest to build from (default: newest run)")
-    c.add_argument("--pack", default="per-entity", choices=list(PACK_MODES),
-                   help="how entities map onto the nine <Picture N> slots")
+    c.add_argument("--pack", default=None, choices=list(PACK_MODES),
+                   help="how entities map onto the reference slots "
+                        "(default per-entity for video, primary for images)")
     c.add_argument("--ref-max", type=int, default=1024,
                    help="longest edge for reference images (default 1024; 0 = native)")
     c.add_argument("--ref-native", action="store_true",
@@ -68,9 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="never draw entity names")
     c.add_argument("--seconds", type=float, default=1.0, help="video duration (default 1)")
     c.add_argument("--frames", type=int, help="pin the frame count (must be 5 mod 17)")
-    c.add_argument("--megapixels", type=float, default=0.4,
-                   help="video resolution budget (default 0.4)")
-    c.add_argument("--aspect", default="16:9", help="16:9, 9:16, 1:1, or w:h")
+    c.add_argument("--megapixels", type=float, default=None,
+                   help="resolution budget (default 0.4 for video, 1.0 for images)")
+    c.add_argument("--aspect", default=None,
+                   help="16:9, 9:16, 1:1, or w:h (default 16:9 for video, 1:1 for images)")
     c.add_argument("--half-res", action="store_true",
                    help="keep the template's half-resolution downscale enabled")
     c.add_argument("--keep-av", action="store_true",
@@ -83,7 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--render", action="store_true",
                    help="also submit the job to a running ComfyUI and wait for the video")
     c.add_argument("--server", default="http://127.0.0.1:8188", help="ComfyUI address")
-    c.add_argument("--steps", type=int, default=20, help="sampler steps (default 20)")
+    c.add_argument("--steps", type=int, default=None,
+                   help="sampler steps (default 20 for video, the backend's own for images)")
     c.add_argument("--seed", type=int, default=0, help="sampler seed")
     c.add_argument("--ref-size", default="match", choices=["match", "max"],
                    help="reference token budget; 'max' is sharper identity but far slower")
@@ -92,7 +109,30 @@ def build_parser() -> argparse.ArgumentParser:
                         "on the CLI it just gives step-accurate progress)")
     c.add_argument("--render-timeout", type=float, default=7200,
                    help="seconds to wait for the render (default 7200)")
+
+    i = p.add_argument_group("ComfyUI - image generation and editing (--mode image/edit)")
+    i.add_argument("--backend", default=DEFAULT_BACKEND, choices=list(BACKENDS),
+                   help="which image model to build for (default %s)" % DEFAULT_BACKEND)
+    i.add_argument("--list-backends", action="store_true",
+                   help="print the image backends and what each one can do, then exit")
+    i.add_argument("--edit-image", help="the frame to edit (required by --mode edit)")
+    i.add_argument("--batch", type=int, default=1, help="images per run (default 1)")
+    i.add_argument("--cfg", type=float, help="guidance scale (default: the backend's own)")
+    i.add_argument("--denoise", type=float, default=1.0,
+                   help="edit strength; below 1 keeps more of the original (default 1)")
+    i.add_argument("--style", default="",
+                   help="style clause appended to the written prompt, e.g. '35mm film still'")
+    i.add_argument("--negative", help="override the negative prompt")
+    i.add_argument("--no-turbo", action="store_true",
+                   help="skip the backend's step-distillation LoRA and sample at full steps")
     return p
+
+
+def resolve_mode_defaults(args) -> None:
+    """Fill the shared settings that default differently per --mode."""
+    for key, value in MODE_DEFAULTS[args.mode].items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, value)
 
 
 # ASCII only - Windows consoles default to cp1252 and a raised UnicodeEncodeError
@@ -152,11 +192,108 @@ def make_printer(quiet: bool):
 
 
 def build_comfy(args, settings, manifest: dict) -> int:
-    from .comfy import BuildOptions, ScalePolicy, build_workflow
+    if args.mode in ("image", "edit"):
+        return build_image(args, settings, manifest)
+    return build_video(args, settings, manifest)
+
+
+def _scale_policy(args):
+    from .comfy import ScalePolicy
+
+    return ScalePolicy.native() if args.ref_native else ScalePolicy(
+        max_edge=args.ref_max or None, megapixels=args.ref_megapixels)
+
+
+def build_image(args, settings, manifest: dict) -> int:
+    """--mode image / --mode edit: a reference-conditioned image workflow."""
+    from .comfy import ImageBuildOptions, build_image_workflow
+
+    opts = ImageBuildOptions(
+        backend=args.backend, mode="edit" if args.mode == "edit" else "generate",
+        pack=args.pack, scale=_scale_policy(args), labels=args.labels,
+        scale_per_tile=args.scale_per_tile,
+        megapixels=args.megapixels, aspect=args.aspect, batch=args.batch,
+        steps=args.steps, cfg=args.cfg, seed=args.seed, denoise=args.denoise,
+        turbo=not args.no_turbo, style=args.style, negative=args.negative,
+        edit_image=args.edit_image,
+        comfy_root=Path(args.comfy_root) if args.comfy_root else settings.comfy_root,
+        out_path=Path(args.comfy_out) if args.comfy_out else None,
+        install_to_comfy=not args.no_install,
+        server=args.server, use_llm=not args.no_llm,
+    )
+    result = build_image_workflow(manifest, settings, opts)
+    if not args.quiet:
+        print()
+        print(result.summary())
+    if args.render:
+        return render_image(args, result)
+    if args.json:
+        print(json.dumps({"workflow": str(result.workflow_path),
+                          "installed": str(result.installed_path or ""),
+                          "backend": result.backend,
+                          "width": result.width, "height": result.height,
+                          "steps": result.steps, "cfg": result.cfg,
+                          "prompt": result.prompt, "negative": result.negative,
+                          "pictures": [{"slot": p.slot, "file": p.filename,
+                                        "entities": p.entities} for p in result.pictures],
+                          "warnings": result.warnings}, indent=2))
+    return 0
+
+
+def render_image(args, result) -> int:
+    """Submit the built image graph to ComfyUI and wait for the file."""
+    import time
+
+    from .comfy.run import ComfyError, stream_graph
+
+    print()
+    print("submitting to %s ..." % args.server)
+    started = time.time()
+
+    def on_event(ev):
+        t = ev.get("type")
+        if t == "submitted":
+            print("  queued %s" % ev["prompt_id"][:8])
+        elif t == "node" and ev.get("node"):
+            print("  [%5.0fs] %s" % (ev["elapsed"], ev["node"]))
+        elif t == "progress" and ev.get("max"):
+            print("  [%5.0fs] %s/%s" % (ev["elapsed"], ev["value"], ev["max"]))
+        elif t == "warning":
+            print("  ! %s" % ev["message"])
+        sys.stdout.flush()
+
+    try:
+        run = stream_graph(result.graph, server=args.server, steps=result.steps,
+                           timeout_s=args.render_timeout, on_event=on_event)
+    except ComfyError as exc:
+        print("render failed after %.0fs:" % (time.time() - started))
+        print(exc)
+        return 1
+    print()
+    print("rendered in %.0fs" % run.elapsed_s)
+    for f in run.outputs:
+        print("  %s" % f)
+    if not run.outputs:
+        print("  (job completed but reported no output files)")
+    return 0
+
+
+def print_backends() -> int:
+    from .comfy.imagegraph import BACKENDS as REGISTRY
+
+    for key, b in REGISTRY.items():
+        print("%-16s %s" % (key, b.label))
+        print("%-16s refs %d  ·  edit %s  ·  %d steps (turbo %d)  ·  %s"
+              % ("", b.ref_slots, "yes" if b.supports_edit else "no",
+                 b.steps, b.turbo_steps, b.notes))
+    return 0
+
+
+def build_video(args, settings, manifest: dict) -> int:
+    from .comfy import BuildOptions, build_workflow
     from .comfy.template import DEFAULT_TEMPLATE
 
-    scale = ScalePolicy.native() if args.ref_native else ScalePolicy(
-        max_edge=args.ref_max or None, megapixels=args.ref_megapixels)
+    scale = _scale_policy(args)
     opts = BuildOptions(
         pack=args.pack, scale=scale, labels=args.labels,
         scale_per_tile=args.scale_per_tile,
@@ -247,6 +384,15 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
     )
+
+    if args.list_backends:
+        return print_backends()
+    if args.edit_image and args.mode == "video":
+        args.mode = "edit"          # --edit-image on its own says what you meant
+    if args.mode == "edit" and not args.edit_image:
+        print("--mode edit needs --edit-image")
+        return 2
+    resolve_mode_defaults(args)
 
     if args.serve:
         from .server import serve

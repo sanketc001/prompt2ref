@@ -6,6 +6,12 @@ Endpoints (all local, no auth - this is a workstation tool):
     GET  /                     the single-page UI
     POST /api/extract          prompt -> entities (editable before fetching)
     POST /api/fetch            entities -> images, streamed as NDJSON progress
+    POST /api/comfy            build the MiniMax H3 video workflow
+    POST /api/render           build + render the video (NDJSON)
+    GET  /api/image/backends   the image models on this machine and what they do
+    POST /api/image/source     stash a frame to edit, returns its ComfyUI name
+    POST /api/image            build the image / edit workflow
+    POST /api/image/render     build + render an image or an edit (NDJSON)
     GET  /api/library          every entity folder currently on disk
     GET  /api/manifest         the most recent run manifest
     DELETE /api/image          drop one image and re-write entity.json
@@ -18,6 +24,7 @@ import dataclasses
 import json
 import queue
 import threading
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -74,6 +81,43 @@ class ComfyRequest(BaseModel):
     keep_av: bool = False
     use_llm: bool = True
     model: str | None = None
+
+
+class ImageRequest(BaseModel):
+    """Build a reference-conditioned image (or edit) workflow."""
+
+    manifest: str | None = None
+    prompt: str = ""
+    backend: str = "qwen-image-edit"
+    mode: str = "generate"                 # generate | edit
+    edit_image: str | None = None          # name under ComfyUI/input, from /api/image/source
+    pack: str = "primary"
+    ref_max: int | None = 1024
+    ref_megapixels: float | None = None
+    ref_native: bool = False
+    scale_per_tile: bool = False
+    labels: bool | None = None
+    megapixels: float = 1.0
+    aspect: str = "1:1"
+    batch: int = 1
+    steps: int | None = None
+    cfg: float | None = None
+    seed: int = 0
+    denoise: float = 1.0
+    turbo: bool = True
+    style: str = ""
+    negative: str | None = None
+    use_llm: bool = True
+    model: str | None = None
+    server: str = "http://127.0.0.1:8188"
+    timeout_s: float = 7200
+
+
+class SourceImageRequest(BaseModel):
+    """A frame to edit, handed over as a data URL so no upload parser is needed."""
+
+    name: str = "source.png"
+    data_url: str
 
 
 class RenderRequest(ComfyRequest):
@@ -250,6 +294,164 @@ def create_app(settings=None) -> FastAPI:
                     timeout_s=req.timeout_s, on_event=events.put,
                     comfy_root=settings.comfy_root,
                 )
+                events.put({
+                    "type": "result",
+                    "elapsed": run.elapsed_s,
+                    "outputs": [
+                        {"path": str(p), "name": p.name,
+                         "url": "/api/output?path=" + quote(str(p))}
+                        for p in run.outputs
+                    ],
+                })
+            except ComfyError as exc:
+                events.put({"type": "error", "error": str(exc)})
+            except Exception as exc:
+                events.put({"type": "error", "error": "%s: %s" % (type(exc).__name__, exc)})
+            finally:
+                events.put(SENTINEL)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        def stream():
+            while True:
+                item = events.get()
+                if item is SENTINEL:
+                    break
+                yield json.dumps(item, default=str) + NEWLINE
+
+        return StreamingResponse(
+            stream(), media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    # -- image generation / editing -----------------------------------------
+
+    def _comfy_root():
+        from .comfy.builder import DEFAULT_COMFY_ROOT
+
+        root = Path(settings.comfy_root) if settings.comfy_root else DEFAULT_COMFY_ROOT
+        return root if root.is_dir() else None
+
+    def _backend_installed(backend, pools) -> bool:
+        from .comfy.imagegraph import ModelMissing, resolve_backend_models
+
+        if not any(pools.values()):
+            return True          # nothing to check against; don't grey it out
+        try:
+            resolve_backend_models(backend, pools, turbo=False)
+            return True
+        except ModelMissing:
+            return False
+
+    @app.get("/api/image/backends")
+    def image_backends():
+        from .comfy import PACK_MODES
+        from .comfy.imagegraph import BACKENDS, DEFAULT_BACKEND, list_models
+
+        pools = list_models(server=None, comfy_root=_comfy_root())
+        backends = []
+        for b in BACKENDS.values():
+            entry = b.to_dict()
+            entry["installed"] = _backend_installed(b, pools)
+            backends.append(entry)
+        return {"backends": backends, "default": DEFAULT_BACKEND,
+                "pack_modes": list(PACK_MODES)}
+
+    @app.post("/api/image/source")
+    def image_source(req: SourceImageRequest):
+        """Stash the frame to edit where ComfyUI's LoadImage can reach it."""
+        import base64
+        import re
+
+        from .comfy.imagebuild import EDIT_SUBDIR, edit_dir
+
+        m = re.match(r"^data:image/([a-zA-Z0-9.+-]+);base64,(.*)$", req.data_url or "",
+                     re.DOTALL)
+        if not m:
+            raise HTTPException(400, "expected a data:image/...;base64 URL")
+        ext = {"jpeg": ".jpg", "svg+xml": ".svg"}.get(m.group(1), "." + m.group(1))
+        root = _comfy_root() or (Path(settings.refs_dir).parent / "comfy_staging")
+        dest_dir = edit_dir(root)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        name = "p2r_edit_%s%s" % (datetime.now().strftime("%H%M%S"), ext)
+        try:
+            (dest_dir / name).write_bytes(base64.b64decode(m.group(2)))
+        except (ValueError, OSError) as exc:
+            raise HTTPException(400, "could not decode the image: %s" % exc)
+        app.state.edit_dir = dest_dir
+        return {"name": "%s/%s" % (EDIT_SUBDIR, name), "path": str(dest_dir / name)}
+
+    def _build_image(req: ImageRequest):
+        from .comfy import ImageBuildOptions, ScalePolicy, build_image_workflow, load_manifest
+        from .comfy.imagegraph import ModelMissing
+
+        build_settings = _with_model(req)
+        try:
+            manifest = load_manifest(req.manifest, build_settings)
+        except FileNotFoundError as exc:
+            raise HTTPException(400, str(exc))
+        if req.prompt.strip():
+            manifest["prompt"] = req.prompt
+
+        scale = ScalePolicy.native() if req.ref_native else ScalePolicy(
+            max_edge=req.ref_max or None, megapixels=req.ref_megapixels)
+        opts = ImageBuildOptions(
+            backend=req.backend, mode=req.mode, edit_image=req.edit_image,
+            pack=req.pack, scale=scale, labels=req.labels,
+            scale_per_tile=req.scale_per_tile,
+            megapixels=req.megapixels, aspect=req.aspect, batch=req.batch,
+            steps=req.steps, cfg=req.cfg, seed=req.seed, denoise=req.denoise,
+            turbo=req.turbo, style=req.style, negative=req.negative,
+            comfy_root=build_settings.comfy_root, server=req.server,
+            use_llm=req.use_llm,
+        )
+        try:
+            result = build_image_workflow(manifest, build_settings, opts)
+        except (ModelMissing, ValueError, FileNotFoundError) as exc:
+            raise HTTPException(400, str(exc))
+        app.state.packed_dir = result.pictures[0].path.parent if result.pictures else None
+        return result
+
+    def _image_payload(result) -> dict:
+        return {
+            "kind": "image",
+            "backend": result.backend,
+            "workflow": str(result.workflow_path),
+            "installed": str(result.installed_path) if result.installed_path else None,
+            "width": result.width, "height": result.height,
+            "steps": result.steps, "cfg": result.cfg, "seed": result.seed,
+            "batch": result.batch,
+            "prompt": result.prompt, "negative": result.negative,
+            "edit_image": result.edit_image,
+            "models": result.models,
+            "warnings": result.warnings,
+            "pictures": [
+                {"slot": p.slot, "file": p.filename, "width": p.width, "height": p.height,
+                 "entities": p.entities, "caption": p.caption}
+                for p in result.pictures
+            ],
+        }
+
+    @app.post("/api/image")
+    def image_build(req: ImageRequest):
+        return _image_payload(_build_image(req))
+
+    @app.post("/api/image/render")
+    def image_render(req: ImageRequest):
+        """Build the image workflow, submit it, and stream progress + previews."""
+        from .comfy.run import ComfyError, stream_graph
+
+        result = _build_image(req)
+        events: queue.Queue = queue.Queue()
+        SENTINEL = object()
+        app.state.render_server = req.server
+
+        def worker():
+            try:
+                events.put({"type": "build", "build": _image_payload(result)})
+                run = stream_graph(
+                    result.graph, server=req.server, steps=result.steps,
+                    timeout_s=req.timeout_s, on_event=events.put,
+                    comfy_root=settings.comfy_root)
                 events.put({
                     "type": "result",
                     "elapsed": run.elapsed_s,

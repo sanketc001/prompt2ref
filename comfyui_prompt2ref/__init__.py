@@ -9,8 +9,17 @@ both feed the same `provider` input on the three consumer nodes.
     entities_json --[P2REntitySlot x5 + P2RCombineEntities]--> entities_json (switchable)
     entities_json --[P2RFetchReferences]--> manifest_json (images on disk)
     provider + manifest_json --[P2RVerifyReferences]--> manifest_json (rejects dropped)
-    manifest_json --[P2RPackReferences]--> ref_image_1..9, captions_json
-    provider + captions_json --[P2RBuildH3Prompt]--> h3_prompt (-> MiniMaxH3ReferenceToVideo.prompt)
+
+Everything above is shared. The tail depends on what you are making:
+
+    video  manifest_json --[P2RPackReferences]--> ref_image_1..9, captions_json
+           provider + captions_json --[P2RBuildH3Prompt]--> h3_prompt
+                                       (-> MiniMaxH3ReferenceToVideo.prompt)
+
+    image  manifest_json --[P2RPackReferencesImage]--> ref_image_1..4, captions_json
+           provider + captions_json --[P2RBuildImagePrompt]--> image_prompt, negative_prompt
+                                       (-> TextEncodeQwenImageEditPlus / CLIPTextEncode)
+           megapixels + aspect --[P2RImageResolution]--> width, height
 """
 
 from .nodes_provider import NODE_CLASS_MAPPINGS as _PROVIDER_CLASSES
@@ -27,14 +36,16 @@ from .nodes_pack import NODE_CLASS_MAPPINGS as _PACK_CLASSES
 from .nodes_pack import NODE_DISPLAY_NAME_MAPPINGS as _PACK_NAMES
 from .nodes_h3prompt import NODE_CLASS_MAPPINGS as _H3PROMPT_CLASSES
 from .nodes_h3prompt import NODE_DISPLAY_NAME_MAPPINGS as _H3PROMPT_NAMES
+from .nodes_image import NODE_CLASS_MAPPINGS as _IMAGE_CLASSES
+from .nodes_image import NODE_DISPLAY_NAME_MAPPINGS as _IMAGE_NAMES
 
 NODE_CLASS_MAPPINGS = {
     **_PROVIDER_CLASSES, **_EXTRACT_CLASSES, **_SLOTS_CLASSES, **_FETCH_CLASSES,
-    **_VERIFY_CLASSES, **_PACK_CLASSES, **_H3PROMPT_CLASSES,
+    **_VERIFY_CLASSES, **_PACK_CLASSES, **_H3PROMPT_CLASSES, **_IMAGE_CLASSES,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     **_PROVIDER_NAMES, **_EXTRACT_NAMES, **_SLOTS_NAMES, **_FETCH_NAMES,
-    **_VERIFY_NAMES, **_PACK_NAMES, **_H3PROMPT_NAMES,
+    **_VERIFY_NAMES, **_PACK_NAMES, **_H3PROMPT_NAMES, **_IMAGE_NAMES,
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

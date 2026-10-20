@@ -1,0 +1,1680 @@
+{
+ "id": "p2r_video_minimax_h3",
+ "revision": 0,
+ "last_node_id": 128,
+ "last_link_id": 43,
+ "nodes": [
+  {
+   "id": 100,
+   "type": "CLIPLoader",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      22
+     ]
+    }
+   ],
+   "title": "clip_h3",
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_32b_minimax_h3_int4_convrot.safetensors",
+    "minimax",
+    "default"
+   ]
+  },
+  {
+   "id": 101,
+   "type": "CLIPLoader",
+   "pos": [
+    0,
+    230
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      3
+     ]
+    }
+   ],
+   "title": "clip_local",
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_8b_nvfp4.safetensors",
+    "stable_diffusion",
+    "default"
+   ]
+  },
+  {
+   "id": 102,
+   "type": "RandomNoise",
+   "pos": [
+    0,
+    460
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "NOISE",
+     "type": "NOISE",
+     "links": [
+      33
+     ]
+    }
+   ],
+   "title": "noise",
+   "properties": {
+    "Node name for S&R": "RandomNoise"
+   },
+   "widgets_values": [
+    0
+   ]
+  },
+  {
+   "id": 103,
+   "type": "P2RAnthropicProvider",
+   "pos": [
+    0,
+    690
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "provider",
+     "type": "P2R_PROVIDER",
+     "links": [
+      1,
+      17,
+      20
+     ]
+    }
+   ],
+   "title": "provider: Anthropic API (wired)",
+   "properties": {
+    "Node name for S&R": "P2RAnthropicProvider"
+   },
+   "widgets_values": [
+    "claude-haiku-4-5",
+    1024
+   ]
+  },
+  {
+   "id": 104,
+   "type": "KSamplerSelect",
+   "pos": [
+    0,
+    920
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SAMPLER",
+     "type": "SAMPLER",
+     "links": [
+      35
+     ]
+    }
+   ],
+   "title": "sampler_select",
+   "properties": {
+    "Node name for S&R": "KSamplerSelect"
+   },
+   "widgets_values": [
+    "res_multistep"
+   ]
+  },
+  {
+   "id": 105,
+   "type": "UNETLoader",
+   "pos": [
+    0,
+    1150
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      2,
+      4
+     ]
+    }
+   ],
+   "title": "unet",
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "MiniMax_H3_Ref2VA_pruned_nvfp4.safetensors",
+    "default"
+   ]
+  },
+  {
+   "id": 106,
+   "type": "VAELoader",
+   "pos": [
+    0,
+    1380
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      25,
+      39
+     ]
+    }
+   ],
+   "title": "vae_audio",
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "minimax_h3_audio_vae_fp32.safetensors"
+   ]
+  },
+  {
+   "id": 107,
+   "type": "VAELoader",
+   "pos": [
+    0,
+    1610
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      24,
+      41
+     ]
+    }
+   ],
+   "title": "vae_video",
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "minimax_h3_video_vae_fp16.safetensors"
+   ]
+  },
+  {
+   "id": 108,
+   "type": "P2RExtractEntities",
+   "pos": [
+    400,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "provider",
+     "type": "P2R_PROVIDER",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "links": [
+      6,
+      7,
+      8,
+      9,
+      10
+     ]
+    },
+    {
+     "name": "entities_readable",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "extract entities from the prompt",
+   "properties": {
+    "Node name for S&R": "P2RExtractEntities"
+   },
+   "widgets_values": [
+    "Tom Cruise walks out of the Taj Mahal holding an iPhone 16 Pro, golden hour",
+    true
+   ]
+  },
+  {
+   "id": 109,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    400,
+    230
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": null
+    }
+   ],
+   "title": "lora",
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "minimax_h3_turbo_4step_ema_ckpt850_pruned_comfyui.safetensors",
+    1.0
+   ]
+  },
+  {
+   "id": 110,
+   "type": "P2RLocalProvider",
+   "pos": [
+    400,
+    460
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "provider",
+     "type": "P2R_PROVIDER",
+     "links": null
+    }
+   ],
+   "title": "provider: local CLIP (unwired - rewire to run offline)",
+   "properties": {
+    "Node name for S&R": "P2RLocalProvider"
+   },
+   "widgets_values": [
+    768,
+    0.4,
+    0.9,
+    40,
+    0
+   ]
+  },
+  {
+   "id": 111,
+   "type": "ApplyVDNH3",
+   "pos": [
+    400,
+    690
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      5,
+      31
+     ]
+    }
+   ],
+   "title": "vdn",
+   "properties": {
+    "Node name for S&R": "ApplyVDNH3"
+   },
+   "widgets_values": [
+    "vdn-minimax-h3-int8-convrot-comfyui",
+    true,
+    1.0,
+    "merge",
+    "stream",
+    "off",
+    true,
+    "grouped"
+   ]
+  },
+  {
+   "id": 112,
+   "type": "BasicScheduler",
+   "pos": [
+    800,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "SIGMAS",
+     "type": "SIGMAS",
+     "links": [
+      36
+     ]
+    }
+   ],
+   "title": "scheduler",
+   "properties": {
+    "Node name for S&R": "BasicScheduler"
+   },
+   "widgets_values": [
+    "simple",
+    8,
+    1.0
+   ]
+  },
+  {
+   "id": 113,
+   "type": "P2REntitySlot",
+   "pos": [
+    800,
+    230
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entity_json",
+     "type": "STRING",
+     "links": [
+      11
+     ]
+    }
+   ],
+   "title": "slot1",
+   "properties": {
+    "Node name for S&R": "P2REntitySlot"
+   },
+   "widgets_values": [
+    "",
+    0,
+    true,
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 114,
+   "type": "P2REntitySlot",
+   "pos": [
+    800,
+    460
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entity_json",
+     "type": "STRING",
+     "links": [
+      12
+     ]
+    }
+   ],
+   "title": "slot2",
+   "properties": {
+    "Node name for S&R": "P2REntitySlot"
+   },
+   "widgets_values": [
+    "",
+    1,
+    true,
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 115,
+   "type": "P2REntitySlot",
+   "pos": [
+    800,
+    690
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entity_json",
+     "type": "STRING",
+     "links": [
+      13
+     ]
+    }
+   ],
+   "title": "slot3",
+   "properties": {
+    "Node name for S&R": "P2REntitySlot"
+   },
+   "widgets_values": [
+    "",
+    2,
+    true,
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 116,
+   "type": "P2REntitySlot",
+   "pos": [
+    800,
+    920
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 9
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entity_json",
+     "type": "STRING",
+     "links": [
+      14
+     ]
+    }
+   ],
+   "title": "slot4",
+   "properties": {
+    "Node name for S&R": "P2REntitySlot"
+   },
+   "widgets_values": [
+    "",
+    3,
+    false,
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 117,
+   "type": "P2REntitySlot",
+   "pos": [
+    800,
+    1150
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entity_json",
+     "type": "STRING",
+     "links": [
+      15
+     ]
+    }
+   ],
+   "title": "slot5",
+   "properties": {
+    "Node name for S&R": "P2REntitySlot"
+   },
+   "widgets_values": [
+    "",
+    4,
+    false,
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 118,
+   "type": "P2RCombineEntities",
+   "pos": [
+    1200,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entity_json_1",
+     "type": "STRING",
+     "link": 11
+    },
+    {
+     "name": "entity_json_2",
+     "type": "STRING",
+     "link": 12
+    },
+    {
+     "name": "entity_json_3",
+     "type": "STRING",
+     "link": 13
+    },
+    {
+     "name": "entity_json_4",
+     "type": "STRING",
+     "link": 14
+    },
+    {
+     "name": "entity_json_5",
+     "type": "STRING",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "links": [
+      16
+     ]
+    },
+    {
+     "name": "summary",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "combine",
+   "properties": {
+    "Node name for S&R": "P2RCombineEntities"
+   },
+   "widgets_values": [
+    "",
+    "",
+    "",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 119,
+   "type": "P2RFetchReferences",
+   "pos": [
+    1600,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 19,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "entities_json",
+     "type": "STRING",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "manifest_json",
+     "type": "STRING",
+     "links": [
+      18
+     ]
+    }
+   ],
+   "title": "fetch",
+   "properties": {
+    "Node name for S&R": "P2RFetchReferences"
+   },
+   "widgets_values": [
+    "",
+    2,
+    false,
+    "ddg,wikimedia,openverse"
+   ]
+  },
+  {
+   "id": 120,
+   "type": "P2RVerifyReferences",
+   "pos": [
+    2000,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 20,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "provider",
+     "type": "P2R_PROVIDER",
+     "link": 17
+    },
+    {
+     "name": "manifest_json",
+     "type": "STRING",
+     "link": 18
+    }
+   ],
+   "outputs": [
+    {
+     "name": "manifest_json",
+     "type": "STRING",
+     "links": [
+      19
+     ]
+    },
+    {
+     "name": "report",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "verify",
+   "properties": {
+    "Node name for S&R": "P2RVerifyReferences"
+   },
+   "widgets_values": [
+    "",
+    true
+   ]
+  },
+  {
+   "id": 121,
+   "type": "P2RPackReferences",
+   "pos": [
+    2400,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 21,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "manifest_json",
+     "type": "STRING",
+     "link": 19
+    }
+   ],
+   "outputs": [
+    {
+     "name": "ref_image_1",
+     "type": "IMAGE",
+     "links": [
+      26
+     ]
+    },
+    {
+     "name": "ref_image_2",
+     "type": "IMAGE",
+     "links": [
+      27
+     ]
+    },
+    {
+     "name": "ref_image_3",
+     "type": "IMAGE",
+     "links": [
+      28
+     ]
+    },
+    {
+     "name": "ref_image_4",
+     "type": "IMAGE",
+     "links": [
+      29
+     ]
+    },
+    {
+     "name": "ref_image_5",
+     "type": "IMAGE",
+     "links": [
+      30
+     ]
+    },
+    {
+     "name": "ref_image_6",
+     "type": "IMAGE",
+     "links": null
+    },
+    {
+     "name": "ref_image_7",
+     "type": "IMAGE",
+     "links": null
+    },
+    {
+     "name": "ref_image_8",
+     "type": "IMAGE",
+     "links": null
+    },
+    {
+     "name": "ref_image_9",
+     "type": "IMAGE",
+     "links": null
+    },
+    {
+     "name": "captions_json",
+     "type": "STRING",
+     "links": [
+      21
+     ]
+    },
+    {
+     "name": "warnings",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "pack references into the model's slots",
+   "properties": {
+    "Node name for S&R": "P2RPackReferences"
+   },
+   "widgets_values": [
+    "",
+    "per-entity",
+    1024,
+    false
+   ]
+  },
+  {
+   "id": 122,
+   "type": "P2RBuildH3Prompt",
+   "pos": [
+    2800,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 22,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "provider",
+     "type": "P2R_PROVIDER",
+     "link": 20
+    },
+    {
+     "name": "captions_json",
+     "type": "STRING",
+     "link": 21
+    }
+   ],
+   "outputs": [
+    {
+     "name": "h3_prompt",
+     "type": "STRING",
+     "links": [
+      23
+     ]
+    }
+   ],
+   "title": "h3prompt",
+   "properties": {
+    "Node name for S&R": "P2RBuildH3Prompt"
+   },
+   "widgets_values": [
+    "Tom Cruise walks out of the Taj Mahal holding an iPhone 16 Pro, golden hour",
+    "",
+    1.0,
+    true
+   ]
+  },
+  {
+   "id": 123,
+   "type": "MiniMaxH3ReferenceToVideo",
+   "pos": [
+    3200,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 23,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 22
+    },
+    {
+     "name": "prompt",
+     "type": "STRING",
+     "link": 23
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 24
+    },
+    {
+     "name": "audio_vae",
+     "type": "VAE",
+     "link": 25
+    },
+    {
+     "name": "ref_images.ref_image_0",
+     "type": "IMAGE",
+     "link": 26
+    },
+    {
+     "name": "ref_images.ref_image_1",
+     "type": "IMAGE",
+     "link": 27
+    },
+    {
+     "name": "ref_images.ref_image_2",
+     "type": "IMAGE",
+     "link": 28
+    },
+    {
+     "name": "ref_images.ref_image_3",
+     "type": "IMAGE",
+     "link": 29
+    },
+    {
+     "name": "ref_images.ref_image_4",
+     "type": "IMAGE",
+     "link": 30
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      32
+     ]
+    },
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      37
+     ]
+    }
+   ],
+   "title": "h3",
+   "properties": {
+    "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+   },
+   "widgets_values": [
+    "",
+    1344,
+    768,
+    124,
+    "match"
+   ]
+  },
+  {
+   "id": 124,
+   "type": "BasicGuider",
+   "pos": [
+    3600,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 24,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 31
+    },
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 32
+    }
+   ],
+   "outputs": [
+    {
+     "name": "GUIDER",
+     "type": "GUIDER",
+     "links": [
+      34
+     ]
+    }
+   ],
+   "title": "guider",
+   "properties": {
+    "Node name for S&R": "BasicGuider"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 125,
+   "type": "SamplerCustomAdvanced",
+   "pos": [
+    4000,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 25,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "noise",
+     "type": "NOISE",
+     "link": 33
+    },
+    {
+     "name": "guider",
+     "type": "GUIDER",
+     "link": 34
+    },
+    {
+     "name": "sampler",
+     "type": "SAMPLER",
+     "link": 35
+    },
+    {
+     "name": "sigmas",
+     "type": "SIGMAS",
+     "link": 36
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 37
+    }
+   ],
+   "outputs": [
+    {
+     "name": "output",
+     "type": "LATENT",
+     "links": null
+    },
+    {
+     "name": "denoised_output",
+     "type": "LATENT",
+     "links": [
+      38,
+      40
+     ]
+    }
+   ],
+   "title": "sample",
+   "properties": {
+    "Node name for S&R": "SamplerCustomAdvanced"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 126,
+   "type": "VAEDecodeAudio",
+   "pos": [
+    4400,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 26,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 38
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 39
+    }
+   ],
+   "outputs": [
+    {
+     "name": "AUDIO",
+     "type": "AUDIO",
+     "links": [
+      43
+     ]
+    }
+   ],
+   "title": "decode_audio",
+   "properties": {
+    "Node name for S&R": "VAEDecodeAudio"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 127,
+   "type": "VAEDecode",
+   "pos": [
+    4400,
+    230
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 27,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 40
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 41
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      42
+     ]
+    }
+   ],
+   "title": "decode_video",
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 128,
+   "type": "VHS_VideoCombine",
+   "pos": [
+    4800,
+    0
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 28,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 42
+    },
+    {
+     "name": "audio",
+     "type": "AUDIO",
+     "link": 43
+    }
+   ],
+   "outputs": [
+    {
+     "name": "Filenames",
+     "type": "VHS_FILENAMES",
+     "links": null
+    }
+   ],
+   "title": "video",
+   "properties": {
+    "Node name for S&R": "VHS_VideoCombine"
+   },
+   "widgets_values": {
+    "frame_rate": 24,
+    "loop_count": 0,
+    "filename_prefix": "p2r_node_test",
+    "format": "video/h264-mp4",
+    "pingpong": false,
+    "save_output": true,
+    "pix_fmt": "yuv420p",
+    "save_metadata": true
+   }
+  }
+ ],
+ "links": [
+  [
+   1,
+   103,
+   0,
+   108,
+   0,
+   "P2R_PROVIDER"
+  ],
+  [
+   2,
+   105,
+   0,
+   109,
+   0,
+   "MODEL"
+  ],
+  [
+   3,
+   101,
+   0,
+   110,
+   0,
+   "CLIP"
+  ],
+  [
+   4,
+   105,
+   0,
+   111,
+   0,
+   "MODEL"
+  ],
+  [
+   5,
+   111,
+   0,
+   112,
+   0,
+   "MODEL"
+  ],
+  [
+   6,
+   108,
+   0,
+   113,
+   0,
+   "STRING"
+  ],
+  [
+   7,
+   108,
+   0,
+   114,
+   0,
+   "STRING"
+  ],
+  [
+   8,
+   108,
+   0,
+   115,
+   0,
+   "STRING"
+  ],
+  [
+   9,
+   108,
+   0,
+   116,
+   0,
+   "STRING"
+  ],
+  [
+   10,
+   108,
+   0,
+   117,
+   0,
+   "STRING"
+  ],
+  [
+   11,
+   113,
+   0,
+   118,
+   0,
+   "STRING"
+  ],
+  [
+   12,
+   114,
+   0,
+   118,
+   1,
+   "STRING"
+  ],
+  [
+   13,
+   115,
+   0,
+   118,
+   2,
+   "STRING"
+  ],
+  [
+   14,
+   116,
+   0,
+   118,
+   3,
+   "STRING"
+  ],
+  [
+   15,
+   117,
+   0,
+   118,
+   4,
+   "STRING"
+  ],
+  [
+   16,
+   118,
+   0,
+   119,
+   0,
+   "STRING"
+  ],
+  [
+   17,
+   103,
+   0,
+   120,
+   0,
+   "P2R_PROVIDER"
+  ],
+  [
+   18,
+   119,
+   0,
+   120,
+   1,
+   "STRING"
+  ],
+  [
+   19,
+   120,
+   0,
+   121,
+   0,
+   "STRING"
+  ],
+  [
+   20,
+   103,
+   0,
+   122,
+   0,
+   "P2R_PROVIDER"
+  ],
+  [
+   21,
+   121,
+   9,
+   122,
+   1,
+   "STRING"
+  ],
+  [
+   22,
+   100,
+   0,
+   123,
+   0,
+   "CLIP"
+  ],
+  [
+   23,
+   122,
+   0,
+   123,
+   1,
+   "STRING"
+  ],
+  [
+   24,
+   107,
+   0,
+   123,
+   2,
+   "VAE"
+  ],
+  [
+   25,
+   106,
+   0,
+   123,
+   3,
+   "VAE"
+  ],
+  [
+   26,
+   121,
+   0,
+   123,
+   4,
+   "IMAGE"
+  ],
+  [
+   27,
+   121,
+   1,
+   123,
+   5,
+   "IMAGE"
+  ],
+  [
+   28,
+   121,
+   2,
+   123,
+   6,
+   "IMAGE"
+  ],
+  [
+   29,
+   121,
+   3,
+   123,
+   7,
+   "IMAGE"
+  ],
+  [
+   30,
+   121,
+   4,
+   123,
+   8,
+   "IMAGE"
+  ],
+  [
+   31,
+   111,
+   0,
+   124,
+   0,
+   "MODEL"
+  ],
+  [
+   32,
+   123,
+   0,
+   124,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   33,
+   102,
+   0,
+   125,
+   0,
+   "NOISE"
+  ],
+  [
+   34,
+   124,
+   0,
+   125,
+   1,
+   "GUIDER"
+  ],
+  [
+   35,
+   104,
+   0,
+   125,
+   2,
+   "SAMPLER"
+  ],
+  [
+   36,
+   112,
+   0,
+   125,
+   3,
+   "SIGMAS"
+  ],
+  [
+   37,
+   123,
+   1,
+   125,
+   4,
+   "LATENT"
+  ],
+  [
+   38,
+   125,
+   1,
+   126,
+   0,
+   "LATENT"
+  ],
+  [
+   39,
+   106,
+   0,
+   126,
+   1,
+   "VAE"
+  ],
+  [
+   40,
+   125,
+   1,
+   127,
+   0,
+   "LATENT"
+  ],
+  [
+   41,
+   107,
+   0,
+   127,
+   1,
+   "VAE"
+  ],
+  [
+   42,
+   127,
+   0,
+   128,
+   0,
+   "IMAGE"
+  ],
+  [
+   43,
+   126,
+   0,
+   128,
+   1,
+   "AUDIO"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "prompt2ref_demo": "prompt -> references -> MiniMax H3 Ref2VA clip",
+  "prompt2ref_prompt": "Tom Cruise walks out of the Taj Mahal holding an iPhone 16 Pro, golden hour"
+ },
+ "version": 0.4
+}
