@@ -7,3 +7,12 @@ comfy_staging/
 .venv/
 render.log
 render_ui_test.log
+
+# Local secrets, archives and generated workflows
+.env.*
+!.env.example
+*.zip
+workflows/ref2va-*.json
+.claude/
+AGENTS.md
+CLAUDE.md
