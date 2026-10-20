@@ -22,6 +22,9 @@ Each entity folder also holds an `entity.json` with per-image provenance
 
 ---
 
+<!-- showcase -->
+![Prompt2Ref web UI: choose video, image or edit target, name the entities, tune reference packing and render settings](docs/ui.png)
+
 ## What it does
 
 1. **Extract** — Claude reads the prompt and returns typed, canonicalised entities.
