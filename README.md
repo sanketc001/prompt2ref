@@ -23,7 +23,7 @@ Each entity folder also holds an `entity.json` with per-image provenance
 ---
 
 <!-- showcase -->
-![Prompt2Ref web UI: choose video, image or edit target, name the entities, tune reference packing and render settings](docs/ui.png)
+![Prompt2Ref web UI after fetching references: each named entity gets typed shots (exterior/interior for a vehicle, establishing/detail for a landmark) pulled from the local cache](docs/refs_loaded.png)
 
 ## What it does
 
